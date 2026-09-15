@@ -38,10 +38,39 @@ export default function Dashboard() {
             </div>
 
             {selectedRepo && (
-                <div className="mt-8 rounded-lg border p-6">
-                    <h2 className="text-xl font-bold">Selected Repository</h2>
-                    <p className="mt-2">{selectedRepo.full_name}</p>
-                </div>
+                <>
+                    <button
+                        onClick={async () => {
+                            const [owner, repo] = selectedRepo.full_name.split("/");
+
+                            const response = await fetch("/api/auth/github/analyze", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({ owner, repo }),
+                            });
+
+                            const data = await response.json();
+
+                            if (!response.ok) {
+                                alert(data.error);
+                                return;
+                            }
+
+                            alert(
+                                `Repository: ${data.fullName}\nLanguage: ${data.language}\nBranch: ${data.defaultBranch}`
+                            );
+                        }}
+                        className="mt-4 rounded-lg bg-black px-5 py-2 text-white"
+                    >
+                        Analyze Repository
+                    </button>
+                    <div className="mt-8 rounded-lg border p-6">
+                        <h2 className="text-xl font-bold">Selected Repository</h2>
+                        <p className="mt-2">{selectedRepo.full_name}</p>
+                    </div>
+                </>
             )}
         </main>
     );
