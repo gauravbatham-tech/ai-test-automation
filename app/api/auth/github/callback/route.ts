@@ -27,25 +27,40 @@ export async function GET(request: Request) {
         method: "POST",
         headers: {
             Accept: "application/json",
-            "Content-Type": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: JSON.stringify({
-            client_id: process.env.GITHUB_CLIENT_ID,
-            client_secret: process.env.GITHUB_CLIENT_SECRET,
+        body: new URLSearchParams({
+            client_id: process.env.GITHUB_CLIENT_ID ?? "",
+            client_secret: process.env.GITHUB_CLIENT_SECRET ?? "",
             code,
         }),
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    let data: { access_token?: string; error?: string };
+
+    try {
+        data = JSON.parse(responseText);
+    } catch {
+        return NextResponse.json(
+            { error: "GitHub token exchange failed" },
+            { status: 502 }
+        );
+    }
 
     if (!data.access_token) {
-        await db
-            .update(users)
-            .set({
-                githubAccessToken: data.access_token,
-            })
-            .where(eq(users.id, userId));
+        return NextResponse.json(
+            { error: data.error ?? "GitHub token exchange failed" },
+            { status: 502 }
+        );
     }
+
+    await db
+        .update(users)
+        .set({
+            githubAccessToken: data.access_token,
+        })
+        .where(eq(users.id, userId));
 
     return NextResponse.json({
         message: "GitHub connected successfully",
