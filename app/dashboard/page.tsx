@@ -6,6 +6,7 @@ export default function Dashboard() {
     const [repos, setRepos] = useState<any[]>([]);
     const [error, setError] = useState("");
     const [selectedRepo, setSelectedRepo] = useState<any>(null);
+    const [tests, setTests] = useState<any[]>([]);
 
     useEffect(() => {
         fetch("/api/auth/github/repos")
@@ -85,6 +86,11 @@ export default function Dashboard() {
                                 return;
                             }
 
+                            if (!data.repository || !data.files?.length) {
+                                alert("No readable source files were found in this repository");
+                                return;
+                            }
+
                             const aiResponse = await fetch("/api/ai/generate-tests", {
                                 method: "POST",
                                 headers: {
@@ -113,8 +119,7 @@ export default function Dashboard() {
                                 return;
                             }
 
-                            console.log(tests);
-                            alert(`Generated ${tests.tests?.tests?.length ?? 0} test cases`);
+                            setTests(tests.tests?.tests ?? []);
                         }}
                         className="ml-3 mt-4 rounded-lg bg-blue-600 px-5 py-2 text-white"
                     >
@@ -125,6 +130,32 @@ export default function Dashboard() {
                         <p className="mt-2">{selectedRepo.full_name}</p>
                     </div>
                 </>
+            )}
+            {tests.length > 0 && (
+                <div className="mt-8">
+                    <h2 className="text-2xl font-bold">Generated Test Cases</h2>
+
+                    <div className="mt-4 space-y-4">
+                        {tests.map((test, index) => (
+                            <div key={index} className="rounded-lg border p-5">
+                                <h3 className="font-semibold">{test.title}</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Category: {test.category}
+                                </p>
+
+                                <ol className="mt-3 list-decimal pl-5">
+                                    {test.steps?.map((step: string, i: number) => (
+                                        <li key={i}>{step}</li>
+                                    ))}
+                                </ol>
+
+                                <p className="mt-3">
+                                    <strong>Expected:</strong> {test.expectedResult}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             )}
         </main>
     );

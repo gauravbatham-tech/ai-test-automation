@@ -41,7 +41,7 @@ export async function POST(req: Request) {
             (item) =>
                 item.type === "blob" &&
                 item.path &&
-                /\.(tsx?|jsx?|py|java|go|rs|php|html|css)$/.test(item.path)
+                /\.(tsx?|jsx?|py|java|go|rs|php|html|css|scss|sass|vue|svelte|rb|kt|swift|c|cpp|h|cs|json|ya?ml|sql|md)$/i.test(item.path)
         )
         .slice(0, 30);
 
