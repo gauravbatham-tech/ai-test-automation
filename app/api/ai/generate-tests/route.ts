@@ -6,25 +6,26 @@ const openai = new OpenAI({
 });
 
 export async function POST(req: Request) {
-    const { repository, files } = await req.json();
+    try {
+        const { repository, files } = await req.json();
 
-    if (!repository || !files?.length) {
-        return NextResponse.json(
-            { error: "Repository code is required" },
-            { status: 400 }
-        );
-    }
+        if (!repository || !files?.length) {
+            return NextResponse.json(
+                { error: "Repository code is required" },
+                { status: 400 }
+            );
+        }
 
-    const source = files
-        .map((file: { path: string; content: string }) =>
-            `FILE: ${file.path}\n${file.content}`
-        )
-        .join("\n\n")
-        .slice(0, 100000);
+        const source = files
+            .map((file: { path: string; content: string }) =>
+                `FILE: ${file.path}\n${file.content}`
+            )
+            .join("\n\n")
+            .slice(0, 100000);
 
-    const response = await openai.responses.create({
-        model: "gpt-5-mini",
-        input: `You are an expert QA engineer.
+        const response = await openai.responses.create({
+            model: "gpt-5-mini",
+            input: `You are an expert QA engineer.
 
 Analyze this repository and generate useful end-to-end test cases.
 
@@ -44,19 +45,26 @@ Return ONLY valid JSON in this format:
 
 SOURCE CODE:
 ${source}`,
-    });
-
-    const text = response.output_text;
-
-    console.log("AI RESPONSE:", text);
-
-    try {
-        return NextResponse.json({
-            tests: JSON.parse(text),
         });
-    } catch {
+
+        const text = response.output_text;
+
+        console.log("AI RESPONSE:", text);
+
+        try {
+            return NextResponse.json({
+                tests: JSON.parse(text),
+            });
+        } catch {
+            return NextResponse.json(
+                { error: "AI returned invalid JSON", raw: text },
+                { status: 500 }
+            );
+        }
+    } catch (error) {
+        console.error("Failed to generate tests:", error);
         return NextResponse.json(
-            { error: "AI returned invalid JSON", raw: text },
+            { error: "Failed to generate tests" },
             { status: 500 }
         );
     }

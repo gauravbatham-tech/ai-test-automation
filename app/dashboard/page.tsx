@@ -96,10 +96,25 @@ export default function Dashboard() {
                                 }),
                             });
 
-                            const tests = await aiResponse.json();
+                            const responseText = await aiResponse.text();
+                            let tests: { tests?: { tests?: unknown[] }; error?: string } = {};
+
+                            if (responseText) {
+                                try {
+                                    tests = JSON.parse(responseText);
+                                } catch {
+                                    alert("The test generation service returned an invalid response");
+                                    return;
+                                }
+                            }
+
+                            if (!aiResponse.ok) {
+                                alert(tests.error ?? "Failed to generate tests");
+                                return;
+                            }
 
                             console.log(tests);
-                            alert(`Generated ${tests.tests?.length ?? 0} test cases`);
+                            alert(`Generated ${tests.tests?.tests?.length ?? 0} test cases`);
                         }}
                         className="ml-3 mt-4 rounded-lg bg-blue-600 px-5 py-2 text-white"
                     >
