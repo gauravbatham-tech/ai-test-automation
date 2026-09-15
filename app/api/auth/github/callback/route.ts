@@ -38,9 +38,16 @@ export async function GET(request: Request) {
     }
 
     await db
-        .update(users)
-        .set({ githubAccessToken: data.access_token })
-        .where(eq(users.id, userId));
+        .insert(users)
+        .values({
+            id: userId,
+            email: "github-user@placeholder.com",
+            githubAccessToken: data.access_token,
+        })
+        .onConflictDoUpdate({
+            target: users.id,
+            set: { githubAccessToken: data.access_token },
+        });
 
     return NextResponse.redirect(new URL("/dashboard", request.url));
 }
