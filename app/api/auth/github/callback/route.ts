@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 
 export async function GET(request: Request) {
     const { userId } = await auth();
@@ -12,6 +12,7 @@ export async function GET(request: Request) {
             { status: 401 }
         );
     }
+
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
 
@@ -45,6 +46,7 @@ export async function GET(request: Request) {
             })
             .where(eq(users.id, userId));
     }
+
     return NextResponse.json({
         message: "GitHub connected successfully",
     });
