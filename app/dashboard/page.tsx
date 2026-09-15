@@ -66,6 +66,45 @@ export default function Dashboard() {
                     >
                         Analyze Repository
                     </button>
+                    <button
+                        onClick={async () => {
+                            const [owner, repo] = selectedRepo.full_name.split("/");
+
+                            const response = await fetch("/api/auth/github/analyze", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({ owner, repo }),
+                            });
+
+                            const data = await response.json();
+
+                            if (!response.ok) {
+                                alert(data.error);
+                                return;
+                            }
+
+                            const aiResponse = await fetch("/api/ai/generate-tests", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    repository: data.repository,
+                                    files: data.files,
+                                }),
+                            });
+
+                            const tests = await aiResponse.json();
+
+                            console.log(tests);
+                            alert(`Generated ${tests.tests?.length ?? 0} test cases`);
+                        }}
+                        className="ml-3 mt-4 rounded-lg bg-blue-600 px-5 py-2 text-white"
+                    >
+                        Generate Tests
+                    </button>
                     <div className="mt-8 rounded-lg border p-6">
                         <h2 className="text-xl font-bold">Selected Repository</h2>
                         <p className="mt-2">{selectedRepo.full_name}</p>
