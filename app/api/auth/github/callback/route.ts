@@ -1,68 +1,46 @@
-import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
     const { userId } = await auth();
+
     if (!userId) {
-        return NextResponse.json(
-            { error: "Not authenticated" },
-            { status: 401 }
-        );
+        return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
 
     if (!code) {
-        return NextResponse.json(
-            { error: "Missing authorization code" },
-            { status: 400 }
-        );
+        return NextResponse.json({ error: "Missing code" }, { status: 400 });
     }
 
     const response = await fetch("https://github.com/login/oauth/access_token", {
         method: "POST",
         headers: {
             Accept: "application/json",
-            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Type": "application/json",
         },
-        body: new URLSearchParams({
-            client_id: process.env.GITHUB_CLIENT_ID ?? "",
-            client_secret: process.env.GITHUB_CLIENT_SECRET ?? "",
+        body: JSON.stringify({
+            client_id: process.env.GITHUB_CLIENT_ID,
+            client_secret: process.env.GITHUB_CLIENT_SECRET,
             code,
         }),
     });
 
-    const responseText = await response.text();
-    let data: { access_token?: string; error?: string };
-
-    try {
-        data = JSON.parse(responseText);
-    } catch {
-        return NextResponse.json(
-            { error: "GitHub token exchange failed" },
-            { status: 502 }
-        );
-    }
+    const data = await response.json();
 
     if (!data.access_token) {
-        return NextResponse.json(
-            { error: data.error ?? "GitHub token exchange failed" },
-            { status: 502 }
-        );
+        return NextResponse.json({ error: "GitHub OAuth failed" }, { status: 400 });
     }
 
     await db
         .update(users)
-        .set({
-            githubAccessToken: data.access_token,
-        })
+        .set({ githubAccessToken: data.access_token })
         .where(eq(users.id, userId));
 
-    return NextResponse.json({
-        message: "GitHub connected successfully",
-    });
+    return NextResponse.redirect(new URL("/dashboard", request.url));
 }
