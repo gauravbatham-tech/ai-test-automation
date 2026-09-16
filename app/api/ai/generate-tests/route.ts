@@ -17,52 +17,51 @@ export async function POST(req: Request) {
         }
 
         const source = files
-            .map((file: { path: string; content: string }) =>
-                `FILE: ${file.path}\n${file.content}`
+            .map(
+                (file: { path: string; content: string }) =>
+                    `FILE: ${file.path}\n${file.content}`
             )
             .join("\n\n")
             .slice(0, 100000);
 
         const response = await openai.responses.create({
             model: "gpt-5-mini",
-            input: `You are an expert QA engineer.
+            input: `Analyze this repository as an expert QA engineer.
 
-Analyze this repository and generate useful end-to-end test cases.
+Generate 5-10 useful end-to-end tests.
 
-Repository: ${repository}
-
-Return ONLY valid JSON in this format:
+Return ONLY JSON:
 {
   "tests": [
     {
       "title": "string",
-      "category": "UI | API | Integration | Authentication",
+      "category": "UI",
       "steps": ["string"],
       "expectedResult": "string"
     }
   ]
 }
 
-SOURCE CODE:
+Repository: ${repository}
+
+SOURCE:
 ${source}`,
         });
 
-        const text = response.output_text;
+        const text = response.output_text.trim();
 
-        console.log("AI RESPONSE:", text);
+        const cleaned = text
+            .replace(/^```json\s*/i, "")
+            .replace(/^```\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
 
-        try {
-            return NextResponse.json({
-                tests: JSON.parse(text),
-            });
-        } catch {
-            return NextResponse.json(
-                { error: "AI returned invalid JSON", raw: text },
-                { status: 500 }
-            );
-        }
+        const result = JSON.parse(cleaned);
+
+        return NextResponse.json(result);
     } catch (error) {
-        console.error("Failed to generate tests:", error);
+        console.error("AI ERROR:", error);
+
         return NextResponse.json(
             { error: "Failed to generate tests" },
             { status: 500 }
