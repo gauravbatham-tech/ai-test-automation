@@ -1,11 +1,11 @@
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { testCases } from "@/db/schema";
 import { NextResponse } from "next/server";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY!,
 });
 
 export async function POST(req: Request) {
@@ -36,18 +36,18 @@ export async function POST(req: Request) {
             .join("\n\n")
             .slice(0, 100000);
 
-        const response = await openai.responses.create({
-            model: "gpt-5-mini",
-            input: `You are an expert QA engineer.
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `You are an expert QA engineer.
 
-Generate 5-10 useful end-to-end test cases.
+Analyze this repository and generate 5-10 useful end-to-end test cases.
 
 Return ONLY valid JSON:
 {
   "tests": [
     {
       "title": "string",
-      "category": "UI",
+      "category": "UI | API | Integration | Authentication",
       "steps": ["string"],
       "expectedResult": "string"
     }
@@ -56,17 +56,14 @@ Return ONLY valid JSON:
 
 Repository: ${repository}
 
-SOURCE:
+SOURCE CODE:
 ${source}`,
+            config: {
+                responseMimeType: "application/json",
+            },
         });
 
-        const cleaned = response.output_text
-            .trim()
-            .replace(/^```json\s*/i, "")
-            .replace(/^```\s*/i, "")
-            .replace(/\s*```$/i, "");
-
-        const result = JSON.parse(cleaned);
+        const result = JSON.parse(response.text ?? '{"tests":[]}');
 
         for (const test of result.tests) {
             await db.insert(testCases).values({
@@ -82,7 +79,7 @@ ${source}`,
 
         return NextResponse.json(result);
     } catch (error) {
-        console.error("AI ERROR:", error);
+        console.error("GEMINI ERROR:", error);
 
         return NextResponse.json(
             { error: "Failed to generate and save tests" },

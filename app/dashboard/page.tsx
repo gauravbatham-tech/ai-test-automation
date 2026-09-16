@@ -104,8 +104,7 @@ export default function Dashboard() {
                             });
 
                             const responseText = await aiResponse.text();
-                            let tests: { tests?: { tests?: unknown[] }; error?: string } = {};
-
+                            let tests: { tests?: any[]; error?: string } = {};
                             if (responseText) {
                                 try {
                                     tests = JSON.parse(responseText);
@@ -120,7 +119,7 @@ export default function Dashboard() {
                                 return;
                             }
 
-                            setTests(tests.tests?.tests ?? []);
+                            setTests(tests.tests ?? []);
                         }}
                         className="ml-3 mt-4 rounded-lg bg-blue-600 px-5 py-2 text-white"
                     >
