@@ -9,7 +9,10 @@ export async function GET() {
     const { userId } = await auth();
 
     if (!userId) {
-        return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+        return NextResponse.json(
+            { error: "Not authenticated" },
+            { status: 401 }
+        );
     }
 
     const user = await db.query.users.findFirst({

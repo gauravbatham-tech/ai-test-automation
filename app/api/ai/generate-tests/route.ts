@@ -1,4 +1,7 @@
 import OpenAI from "openai";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/db";
+import { testCases } from "@/db/schema";
 import { NextResponse } from "next/server";
 
 const openai = new OpenAI({
@@ -7,6 +10,15 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
     try {
+        const { userId } = await auth();
+
+        if (!userId) {
+            return NextResponse.json(
+                { error: "Not authenticated" },
+                { status: 401 }
+            );
+        }
+
         const { repository, files } = await req.json();
 
         if (!repository || !files?.length) {
@@ -26,11 +38,11 @@ export async function POST(req: Request) {
 
         const response = await openai.responses.create({
             model: "gpt-5-mini",
-            input: `Analyze this repository as an expert QA engineer.
+            input: `You are an expert QA engineer.
 
-Generate 5-10 useful end-to-end tests.
+Generate 5-10 useful end-to-end test cases.
 
-Return ONLY JSON:
+Return ONLY valid JSON:
 {
   "tests": [
     {
@@ -48,22 +60,32 @@ SOURCE:
 ${source}`,
         });
 
-        const text = response.output_text.trim();
-
-        const cleaned = text
+        const cleaned = response.output_text
+            .trim()
             .replace(/^```json\s*/i, "")
             .replace(/^```\s*/i, "")
-            .replace(/\s*```$/i, "")
-            .trim();
+            .replace(/\s*```$/i, "");
 
         const result = JSON.parse(cleaned);
+
+        for (const test of result.tests) {
+            await db.insert(testCases).values({
+                id: crypto.randomUUID(),
+                userId,
+                repository,
+                title: test.title,
+                category: test.category,
+                steps: JSON.stringify(test.steps),
+                expectedResult: test.expectedResult,
+            });
+        }
 
         return NextResponse.json(result);
     } catch (error) {
         console.error("AI ERROR:", error);
 
         return NextResponse.json(
-            { error: "Failed to generate tests" },
+            { error: "Failed to generate and save tests" },
             { status: 500 }
         );
     }
