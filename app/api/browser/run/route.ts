@@ -8,11 +8,11 @@ const browserbase = new Browserbase({
 
 export async function POST(req: Request) {
     try {
-        const { url } = await req.json();
+        const { url, steps } = await req.json();
 
-        if (!url) {
+        if (!url || !steps?.length) {
             return NextResponse.json(
-                { error: "URL is required" },
+                { error: "URL and test steps are required" },
                 { status: 400 }
             );
         }
@@ -26,9 +26,40 @@ export async function POST(req: Request) {
         const context = browser.contexts()[0];
         const page = context.pages()[0] || await context.newPage();
 
+        const logs: string[] = [];
+
         await page.goto(url, {
             waitUntil: "domcontentloaded",
         });
+
+        logs.push(`Opened ${url}`);
+
+        for (const step of steps) {
+            logs.push(`Executing: ${step}`);
+
+            const lower = step.toLowerCase();
+
+            if (lower.includes("click")) {
+                const text = step
+                    .replace(/click/i, "")
+                    .replace(/button/i, "")
+                    .trim();
+
+                if (text) {
+                    await page.getByText(text, { exact: false }).first().click();
+                }
+            } else if (lower.includes("navigate") || lower.includes("open")) {
+                const match = step.match(/https?:\/\/[^\s]+/);
+
+                if (match) {
+                    await page.goto(match[0], {
+                        waitUntil: "domcontentloaded",
+                    });
+                }
+            } else {
+                logs.push(`Skipped unsupported action: ${step}`);
+            }
+        }
 
         const title = await page.title();
 
@@ -37,8 +68,8 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: true,
             sessionId: session.id,
-            url,
             title,
+            logs,
         });
     } catch (error) {
         console.error("BROWSER ERROR:", error);

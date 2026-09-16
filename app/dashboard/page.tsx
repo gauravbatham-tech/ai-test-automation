@@ -105,6 +105,7 @@ export default function Dashboard() {
 
                             const responseText = await aiResponse.text();
                             let tests: { tests?: any[]; error?: string } = {};
+
                             if (responseText) {
                                 try {
                                     tests = JSON.parse(responseText);
@@ -149,7 +150,10 @@ export default function Dashboard() {
                             headers: {
                                 "Content-Type": "application/json",
                             },
-                            body: JSON.stringify({ url: targetUrl }),
+                            body: JSON.stringify({
+                                url: targetUrl,
+                                steps: tests[0]?.steps || ["Open the homepage"],
+                            }),
                         });
 
                         const data = await response.json();
