@@ -7,6 +7,7 @@ export default function Dashboard() {
     const [error, setError] = useState("");
     const [selectedRepo, setSelectedRepo] = useState<any>(null);
     const [tests, setTests] = useState<any[]>([]);
+    const [targetUrl, setTargetUrl] = useState("");
 
     useEffect(() => {
         fetch("/api/auth/github/repos")
@@ -131,6 +132,42 @@ export default function Dashboard() {
                     </div>
                 </>
             )}
+
+            <div className="mt-8">
+                <h2 className="text-xl font-semibold">Target Application</h2>
+
+                <input
+                    value={targetUrl}
+                    onChange={(e) => setTargetUrl(e.target.value)}
+                    placeholder="https://your-app.com"
+                    className="mt-3 w-full rounded-lg border p-3"
+                />
+
+                <button
+                    onClick={async () => {
+                        const response = await fetch("/api/browser/run", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ url: targetUrl }),
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            alert(data.error);
+                            return;
+                        }
+
+                        alert(`Browser test completed.\nPage title: ${data.title}`);
+                    }}
+                    className="mt-3 rounded-lg bg-black px-5 py-2 text-white"
+                >
+                    Run Browser Test
+                </button>
+            </div>
+
             {tests.length > 0 && (
                 <div className="mt-8">
                     <h2 className="text-2xl font-bold">Generated Test Cases</h2>
