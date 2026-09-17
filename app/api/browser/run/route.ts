@@ -195,6 +195,12 @@ export async function POST(req: Request) {
         }
 
         const title = await page.title();
+        const sessionResult = {
+            sessionId: session.id,
+            status: "passed",
+            title,
+            logs,
+        };
 
         logs.push("All actions completed successfully");
 
@@ -203,6 +209,7 @@ export async function POST(req: Request) {
             userId,
             status: "passed",
             sessionId: session.id,
+            recordingUrl: null,
             logs: JSON.stringify(logs),
         });
 
@@ -232,6 +239,7 @@ export async function POST(req: Request) {
                     userId,
                     status: "failed",
                     sessionId: session.id,
+                    recordingUrl: null,
                     logs: JSON.stringify(logs),
                 });
             }

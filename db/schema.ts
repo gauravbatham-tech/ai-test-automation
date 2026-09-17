@@ -24,6 +24,7 @@ export const testExecutions = pgTable("test_executions", {
     testId: text("test_id"),
     status: text("status").notNull(),
     sessionId: text("session_id"),
+    recordingUrl: text("recording_url"),
     logs: text("logs").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });

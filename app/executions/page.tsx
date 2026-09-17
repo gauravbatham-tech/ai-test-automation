@@ -30,8 +30,40 @@ export default function ExecutionsPage() {
                             Session: {execution.sessionId}
                         </p>
 
+                        {execution.sessionId && (
+                            <a
+                                href={`https://browserbase.com/sessions/${execution.sessionId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-3 inline-block text-blue-600 underline"
+                            >
+                                Open Browserbase Session
+                            </a>
+                        )}
+
+                        {execution.recordingUrl && (
+                            <a
+                                href={execution.recordingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-4 inline-block text-blue-600 underline"
+                            >
+                                Watch Recording
+                            </a>
+                        )}
+
                         <pre className="mt-3 overflow-auto rounded bg-gray-100 p-3 text-sm">
-                            {JSON.parse(execution.logs).join("\n")}
+                            {(() => {
+                                try {
+                                    const parsed = JSON.parse(execution.logs);
+
+                                    return Array.isArray(parsed)
+                                        ? parsed.join("\n")
+                                        : JSON.stringify(parsed, null, 2);
+                                } catch {
+                                    return execution.logs;
+                                }
+                            })()}
                         </pre>
 
                         <p className="mt-3 text-sm text-gray-500">

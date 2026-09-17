@@ -1,0 +1,1 @@
+ALTER TABLE "test_executions" ADD COLUMN "recording_url" text;
