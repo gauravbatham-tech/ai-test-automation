@@ -29,3 +29,15 @@ export const testExecutions = pgTable("test_executions", {
     logs: text("logs").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const projectSettings = pgTable("project_settings", {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    repository: text("repository").notNull().unique(),
+    targetUrl: text("target_url").notNull(),
+    demoEmail: text("demo_email"),
+    demoPassword: text("demo_password"),
+    globalInstructions: text("global_instructions"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

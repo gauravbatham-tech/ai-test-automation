@@ -47,7 +47,13 @@ export async function POST(req: Request) {
             );
         }
 
-        const { repository, files } = await req.json();
+        const {
+            repository,
+            files,
+            targetUrl,
+            demoEmail,
+            globalInstructions,
+        } = await req.json();
 
         if (!repository || !Array.isArray(files) || !files.length) {
             return NextResponse.json(
@@ -149,6 +155,19 @@ STRICT RULES:
 
 Repository:
 ${repository}
+
+TARGET APPLICATION:
+${targetUrl || "Not provided"}
+
+DEMO EMAIL:
+${demoEmail || "Not provided"}
+
+GLOBAL QA INSTRUCTIONS:
+${globalInstructions || "No additional instructions"}
+
+Use the target application URL as the starting point for browser tests.
+If demo credentials are provided, use them only for authentication test actions.
+Follow the global QA instructions when generating tests.
 
 SOURCE CODE:
 ${source}

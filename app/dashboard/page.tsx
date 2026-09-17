@@ -7,6 +7,10 @@ export default function Dashboard() {
     const [error, setError] = useState("");
     const [selectedRepo, setSelectedRepo] = useState<any>(null);
     const [tests, setTests] = useState<any[]>([]);
+    const [demoEmail, setDemoEmail] = useState("");
+    const [demoPassword, setDemoPassword] = useState("");
+    const [globalInstructions, setGlobalInstructions] = useState("");
+    const [settingsSaved, setSettingsSaved] = useState(false);
     const [targetUrl, setTargetUrl] = useState("");
     const [execution, setExecution] = useState<any>(null);
     const [isRunning, setIsRunning] = useState(false);
@@ -20,6 +24,29 @@ export default function Dashboard() {
                 else setRepos(data);
             });
     }, []);
+
+    useEffect(() => {
+        if (!selectedRepo) return;
+
+        fetch(
+            `/api/project-settings?repository=${encodeURIComponent(
+                selectedRepo.full_name
+            )}`
+        )
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data) return;
+
+                setTargetUrl(data.targetUrl ?? "");
+                setDemoEmail(data.demoEmail ?? "");
+                setDemoPassword(
+                    data.demoPassword ?? ""
+                );
+                setGlobalInstructions(
+                    data.globalInstructions ?? ""
+                );
+            });
+    }, [selectedRepo]);
 
     return (
         <main className="min-h-screen p-8">
@@ -114,6 +141,9 @@ export default function Dashboard() {
                                     body: JSON.stringify({
                                         repository: data.repository,
                                         files: data.files,
+                                        targetUrl,
+                                        demoEmail,
+                                        globalInstructions,
                                     }),
                                 }
                             );
@@ -160,6 +190,125 @@ export default function Dashboard() {
 
             <div className="mt-8 rounded-lg border p-6">
                 <h2 className="text-xl font-semibold">Target Application</h2>
+                <div className="mt-6 space-y-4">
+
+                    <div>
+                        <label className="font-medium">
+                            Target Application URL
+                        </label>
+
+                        <input
+                            value={targetUrl}
+                            onChange={(e) =>
+                                setTargetUrl(e.target.value)
+                            }
+                            placeholder="https://your-app.com"
+                            className="mt-2 w-full rounded-lg border p-3"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="font-medium">
+                            Demo Email
+                        </label>
+
+                        <input
+                            type="email"
+                            value={demoEmail}
+                            onChange={(e) =>
+                                setDemoEmail(e.target.value)
+                            }
+                            placeholder="demo@example.com"
+                            className="mt-2 w-full rounded-lg border p-3"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="font-medium">
+                            Demo Password
+                        </label>
+
+                        <input
+                            type="password"
+                            value={demoPassword}
+                            onChange={(e) =>
+                                setDemoPassword(e.target.value)
+                            }
+                            placeholder="Demo password"
+                            className="mt-2 w-full rounded-lg border p-3"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="font-medium">
+                            Global QA Instructions
+                        </label>
+
+                        <textarea
+                            value={globalInstructions}
+                            onChange={(e) =>
+                                setGlobalInstructions(e.target.value)
+                            }
+                            placeholder="Example: Always test authentication, validation, error states and mobile responsiveness."
+                            className="mt-2 min-h-32 w-full rounded-lg border p-3"
+                        />
+                    </div>
+
+                    <button
+                        onClick={async () => {
+                            if (!selectedRepo) {
+                                alert("Please select a repository");
+                                return;
+                            }
+
+                            if (!targetUrl) {
+                                alert("Please enter the target URL");
+                                return;
+                            }
+
+                            const response = await fetch(
+                                "/api/project-settings",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type":
+                                            "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        repository:
+                                            selectedRepo.full_name,
+                                        targetUrl,
+                                        demoEmail,
+                                        demoPassword,
+                                        globalInstructions,
+                                    }),
+                                }
+                            );
+
+                            const data = await response.json();
+
+                            if (!response.ok) {
+                                alert(
+                                    data.error ??
+                                    "Failed to save settings"
+                                );
+                                return;
+                            }
+
+                            setSettingsSaved(true);
+                        }}
+                        className="rounded-lg bg-blue-600 px-5 py-2 text-white"
+                    >
+                        Save Project Settings
+                    </button>
+
+                    {settingsSaved && (
+                        <p className="text-sm text-green-600">
+                            Project settings saved successfully.
+                        </p>
+                    )}
+
+                </div>
                 <div className="mt-4">
                     <label className="font-medium">Execution Mode</label>
 
