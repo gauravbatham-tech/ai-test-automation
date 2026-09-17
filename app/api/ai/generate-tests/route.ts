@@ -224,6 +224,7 @@ ${source}
                 title: test.title,
                 category: test.category,
                 steps: JSON.stringify(test.steps),
+                actions: JSON.stringify(test.actions),
                 expectedResult: test.expectedResult,
             });
         }

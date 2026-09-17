@@ -10,6 +10,8 @@ export default function Dashboard() {
     const [targetUrl, setTargetUrl] = useState("");
     const [execution, setExecution] = useState<any>(null);
     const [isRunning, setIsRunning] = useState(false);
+    const [runMode, setRunMode] = useState<"ai" | "cached">("ai");
+
     useEffect(() => {
         fetch("/api/auth/github/repos")
             .then((res) => res.json())
@@ -71,15 +73,22 @@ export default function Dashboard() {
                     </button>
                     <button
                         onClick={async () => {
-                            const [owner, repo] = selectedRepo.full_name.split("/");
+                            const [owner, repo] =
+                                selectedRepo.full_name.split("/");
 
-                            const response = await fetch("/api/auth/github/analyze", {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({ owner, repo }),
-                            });
+                            const response = await fetch(
+                                "/api/auth/github/analyze",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        owner,
+                                        repo,
+                                    }),
+                                }
+                            );
 
                             const data = await response.json();
 
@@ -89,39 +98,54 @@ export default function Dashboard() {
                             }
 
                             if (!data.repository || !data.files?.length) {
-                                alert("No readable source files were found in this repository");
+                                alert(
+                                    "No readable source files were found"
+                                );
                                 return;
                             }
 
-                            const aiResponse = await fetch("/api/ai/generate-tests", {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    repository: data.repository,
-                                    files: data.files,
-                                }),
-                            });
-
-                            const responseText = await aiResponse.text();
-                            let tests: { tests?: any[]; error?: string } = {};
-
-                            if (responseText) {
-                                try {
-                                    tests = JSON.parse(responseText);
-                                } catch {
-                                    alert("The test generation service returned an invalid response");
-                                    return;
+                            const aiResponse = await fetch(
+                                "/api/ai/generate-tests",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        repository: data.repository,
+                                        files: data.files,
+                                    }),
                                 }
+                            );
+
+                            const responseText =
+                                await aiResponse.text();
+
+                            let result: {
+                                tests?: any[];
+                                error?: string;
+                            } = {};
+
+                            try {
+                                result = responseText
+                                    ? JSON.parse(responseText)
+                                    : {};
+                            } catch {
+                                alert(
+                                    "Invalid AI response"
+                                );
+                                return;
                             }
 
                             if (!aiResponse.ok) {
-                                alert(tests.error ?? "Failed to generate tests");
+                                alert(
+                                    result.error ??
+                                    "Failed to generate tests"
+                                );
                                 return;
                             }
 
-                            setTests(tests.tests ?? []);
+                            setTests(result.tests ?? []);
                         }}
                         className="ml-3 mt-4 rounded-lg bg-blue-600 px-5 py-2 text-white"
                     >
@@ -136,6 +160,25 @@ export default function Dashboard() {
 
             <div className="mt-8 rounded-lg border p-6">
                 <h2 className="text-xl font-semibold">Target Application</h2>
+                <div className="mt-4">
+                    <label className="font-medium">Execution Mode</label>
+
+                    <select
+                        value={runMode}
+                        onChange={(e) =>
+                            setRunMode(e.target.value as "ai" | "cached")
+                        }
+                        className="mt-2 w-full rounded-lg border p-3"
+                    >
+                        <option value="ai">
+                            AI Generate
+                        </option>
+
+                        <option value="cached">
+                            Run Cached
+                        </option>
+                    </select>
+                </div>
 
                 <input
                     value={targetUrl}
@@ -162,50 +205,105 @@ export default function Dashboard() {
                         <button
                             disabled={isRunning}
                             onClick={async () => {
-                                const select = document.getElementById(
-                                    "selected-test"
-                                ) as HTMLSelectElement;
-
-                                const selectedTest = tests[Number(select.value)];
-
                                 if (!targetUrl) {
-                                    alert("Please enter the target application URL");
-                                    return;
-                                }
-
-                                if (!selectedTest?.actions?.length) {
-                                    alert("Selected test has no executable actions");
+                                    alert(
+                                        "Please enter the target application URL"
+                                    );
                                     return;
                                 }
 
                                 setIsRunning(true);
-                                setExecution({
-                                    status: "running",
-                                    logs: ["Starting browser execution..."],
-                                });
 
                                 try {
-                                    const response = await fetch("/api/browser/run", {
-                                        method: "POST",
-                                        headers: {
-                                            "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({
-                                            url: targetUrl,
-                                            steps: selectedTest.actions,
-                                        }),
+                                    let availableTests: any[] = [];
+
+                                    if (runMode === "cached") {
+                                        const response = await fetch(
+                                            `/api/tests?repository=${encodeURIComponent(
+                                                selectedRepo.full_name
+                                            )}`
+                                        );
+
+                                        const data = await response.json();
+
+                                        if (!response.ok) {
+                                            alert(
+                                                data.error ??
+                                                "Failed to load cached tests"
+                                            );
+                                            return;
+                                        }
+
+                                        availableTests = data.map(
+                                            (test: any) => ({
+                                                ...test,
+                                                steps: JSON.parse(
+                                                    test.steps
+                                                ),
+                                                actions: JSON.parse(
+                                                    test.actions
+                                                ),
+                                            })
+                                        );
+
+                                        setTests(availableTests);
+                                    } else {
+                                        availableTests = tests;
+                                    }
+
+                                    if (!availableTests.length) {
+                                        alert(
+                                            "No tests available. Generate tests first."
+                                        );
+                                        return;
+                                    }
+
+                                    const selectedTest =
+                                        availableTests[0];
+
+                                    if (
+                                        !selectedTest.actions ||
+                                        !selectedTest.actions.length
+                                    ) {
+                                        alert(
+                                            "Selected test has no executable actions."
+                                        );
+                                        return;
+                                    }
+
+                                    setExecution({
+                                        status: "running",
+                                        logs: [
+                                            runMode === "cached"
+                                                ? "Running cached test..."
+                                                : "Running AI-generated test...",
+                                        ],
                                     });
+
+                                    const response = await fetch(
+                                        "/api/browser/run",
+                                        {
+                                            method: "POST",
+                                            headers: {
+                                                "Content-Type":
+                                                    "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                                url: targetUrl,
+                                                steps: selectedTest.actions,
+                                            }),
+                                        }
+                                    );
 
                                     const data = await response.json();
 
                                     setExecution(data);
-
                                 } catch (error) {
                                     setExecution({
-                                        status: "failed",
                                         success: false,
+                                        status: "failed",
                                         logs: [
-                                            "Could not connect to execution service.",
+                                            "Execution failed",
                                             String(error),
                                         ],
                                     });
@@ -214,7 +312,11 @@ export default function Dashboard() {
                                 }
                             }}
                         >
-                            {isRunning ? "Running..." : "Run Selected Test"}
+                            {isRunning
+                                ? "Running..."
+                                : runMode === "cached"
+                                    ? "Run Cached Test"
+                                    : "Run AI Test"}
                         </button>
                     </div>
                 )}

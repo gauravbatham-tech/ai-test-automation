@@ -4,7 +4,7 @@ import { testCases } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req: Request) {
     const { userId } = await auth();
 
     if (!userId) {
@@ -14,10 +14,22 @@ export async function GET() {
         );
     }
 
-    const tests = await db
-        .select()
-        .from(testCases)
-        .where(eq(testCases.userId, userId));
+    const { searchParams } = new URL(req.url);
+    const repository = searchParams.get("repository");
 
-    return NextResponse.json(tests);
+    const tests = repository
+        ? await db
+            .select()
+            .from(testCases)
+            .where(eq(testCases.userId, userId))
+        : await db
+            .select()
+            .from(testCases)
+            .where(eq(testCases.userId, userId));
+
+    const filteredTests = repository
+        ? tests.filter((test) => test.repository === repository)
+        : tests;
+
+    return NextResponse.json(filteredTests);
 }
