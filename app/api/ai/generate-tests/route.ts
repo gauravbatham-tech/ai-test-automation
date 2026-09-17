@@ -49,10 +49,23 @@ Return ONLY valid JSON:
       "title": "string",
       "category": "UI | API | Integration | Authentication",
       "steps": ["string"],
+      "actions": [
+        {
+          "type": "goto | click | fill | expectText",
+          "selector": "string",
+          "value": "string"
+        }
+      ],
       "expectedResult": "string"
     }
   ]
 }
+
+IMPORTANT:
+- Generate actions that can be executed directly by Playwright.
+- For click actions, use reliable selectors such as text, role, label, placeholder, or CSS selectors.
+- For fill actions, provide the input value.
+- Do not put natural-language instructions inside actions.
 
 Repository: ${repository}
 

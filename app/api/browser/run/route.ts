@@ -34,30 +34,35 @@ export async function POST(req: Request) {
 
         logs.push(`Opened ${url}`);
 
-        for (const step of steps) {
-            logs.push(`Executing: ${step}`);
+        for (const action of steps) {
+            logs.push(`Executing: ${JSON.stringify(action)}`);
 
-            const lower = step.toLowerCase();
+            if (action.type === "goto") {
+                await page.goto(action.value, {
+                    waitUntil: "domcontentloaded",
+                });
+            }
 
-            if (lower.includes("click")) {
-                const text = step
-                    .replace(/click/i, "")
-                    .replace(/button/i, "")
-                    .trim();
+            else if (action.type === "click") {
+                await page.getByText(action.selector, {
+                    exact: false,
+                }).first().click({ timeout: 5000 });
+            }
 
-                if (text) {
-                    await page.getByText(text, { exact: false }).first().click();
-                }
-            } else if (lower.includes("navigate") || lower.includes("open")) {
-                const match = step.match(/https?:\/\/[^\s]+/);
+            else if (action.type === "fill") {
+                await page.locator(action.selector).fill(action.value ?? "");
+            }
 
-                if (match) {
-                    await page.goto(match[0], {
-                        waitUntil: "domcontentloaded",
-                    });
-                }
-            } else {
-                logs.push(`Skipped unsupported action: ${step}`);
+            else if (action.type === "expectText") {
+                await page.getByText(action.selector, {
+                    exact: false,
+                }).first().waitFor({ timeout: 5000 });
+
+                logs.push(`Verified text: ${action.selector}`);
+            }
+
+            else {
+                logs.push(`Unsupported action: ${action.type}`);
             }
         }
 

@@ -8,6 +8,7 @@ export default function Dashboard() {
     const [selectedRepo, setSelectedRepo] = useState<any>(null);
     const [tests, setTests] = useState<any[]>([]);
     const [targetUrl, setTargetUrl] = useState("");
+    const [execution, setExecution] = useState<any>(null);
 
     useEffect(() => {
         fetch("/api/auth/github/repos")
@@ -133,7 +134,7 @@ export default function Dashboard() {
                 </>
             )}
 
-            <div className="mt-8">
+            <div className="mt-8 rounded-lg border p-6">
                 <h2 className="text-xl font-semibold">Target Application</h2>
 
                 <input
@@ -143,33 +144,95 @@ export default function Dashboard() {
                     className="mt-3 w-full rounded-lg border p-3"
                 />
 
-                <button
-                    onClick={async () => {
-                        const response = await fetch("/api/browser/run", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                url: targetUrl,
-                                steps: tests[0]?.steps || ["Open the homepage"],
-                            }),
-                        });
+                {tests.length > 0 && (
+                    <div className="mt-4">
+                        <label className="font-medium">Select Test</label>
 
-                        const data = await response.json();
+                        <select
+                            id="selected-test"
+                            className="mt-2 w-full rounded-lg border p-3"
+                        >
+                            {tests.map((test, index) => (
+                                <option key={index} value={index}>
+                                    {test.title}
+                                </option>
+                            ))}
+                        </select>
 
-                        if (!response.ok) {
-                            alert(data.error);
-                            return;
-                        }
+                        <button
+                            onClick={async () => {
+                                const select = document.getElementById(
+                                    "selected-test"
+                                ) as HTMLSelectElement;
 
-                        alert(`Browser test completed.\nPage title: ${data.title}`);
-                    }}
-                    className="mt-3 rounded-lg bg-black px-5 py-2 text-white"
-                >
-                    Run Browser Test
-                </button>
+                                const selectedTest = tests[Number(select.value)];
+
+                                if (!targetUrl) {
+                                    alert("Please enter the target application URL");
+                                    return;
+                                }
+
+                                if (!selectedTest?.steps?.length) {
+                                    alert("Selected test has no steps");
+                                    return;
+                                }
+
+                                const response = await fetch("/api/browser/run", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        url: targetUrl,
+                                        steps: selectedTest.actions,
+                                    }),
+                                });
+
+                                const data = await response.json();
+
+                                if (!response.ok) {
+                                    alert(data.error);
+                                    return;
+                                }
+
+                                setExecution(data);
+                            }}
+                            className="mt-4 rounded-lg bg-black px-5 py-2 text-white"
+                        >
+                            Run Selected Test
+                        </button>
+                    </div>
+                )}
             </div>
+
+            {execution && (
+                <div className="mt-8 rounded-lg border p-6">
+                    <h2 className="text-2xl font-bold">
+                        Execution Result
+                    </h2>
+
+                    <p className="mt-3">
+                        Status:{" "}
+                        <span className="font-semibold">
+                            {execution.success ? "PASSED" : "FAILED"}
+                        </span>
+                    </p>
+
+                    <p className="mt-2">
+                        Page Title: {execution.title}
+                    </p>
+
+                    <h3 className="mt-4 font-semibold">Execution Logs</h3>
+
+                    <pre className="mt-2 overflow-auto rounded-lg bg-gray-100 p-4 text-sm">
+                        {execution.logs?.join("\n")}
+                    </pre>
+
+                    <p className="mt-4 text-sm">
+                        Browserbase Session: {execution.sessionId}
+                    </p>
+                </div>
+            )}
 
             {tests.length > 0 && (
                 <div className="mt-8">
