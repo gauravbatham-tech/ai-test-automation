@@ -9,25 +9,37 @@ const browserbase = new Browserbase({
     apiKey: process.env.BROWSERBASE_API_KEY!,
 });
 
-function isValidNavigationUrl(value: unknown): value is string {
+function isValidUrl(value: unknown): value is string {
     if (typeof value !== "string" || !value.trim()) {
         return false;
     }
 
     try {
-        const parsedUrl = new URL(value);
-        return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+        const parsed = new URL(value);
+
+        return (
+            parsed.protocol === "http:" ||
+            parsed.protocol === "https:"
+        );
     } catch {
         return false;
     }
 }
 
 export async function POST(req: Request) {
-    let session: Awaited<ReturnType<typeof browserbase.sessions.create>> | undefined;
-    let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
+    let session:
+        | Awaited<
+            ReturnType<typeof browserbase.sessions.create>
+        >
+        | undefined;
+
+    let browser:
+        | Awaited<ReturnType<typeof chromium.connectOverCDP>>
+        | undefined;
+
+    const logs: string[] = [];
 
     try {
-        const { url, steps } = await req.json();
         const { userId } = await auth();
 
         if (!userId) {
@@ -37,17 +49,55 @@ export async function POST(req: Request) {
             );
         }
 
-        if (!isValidNavigationUrl(url) || !Array.isArray(steps) || !steps.length) {
+        const { url, steps } = await req.json();
+
+        if (
+            !isValidUrl(url) ||
+            !Array.isArray(steps) ||
+            !steps.length
+        ) {
             return NextResponse.json(
-                { error: "A valid HTTP(S) URL and test steps are required" },
+                {
+                    error:
+                        "A valid HTTP(S) URL and test actions are required",
+                },
                 { status: 400 }
             );
         }
 
         for (const action of steps) {
-            if (action.type === "goto" && !isValidNavigationUrl(action.value)) {
+            if (
+                !action ||
+                typeof action !== "object" ||
+                !["goto", "click", "fill", "expectText"].includes(
+                    action.type
+                )
+            ) {
                 return NextResponse.json(
-                    { error: "A goto action must include a valid HTTP(S) URL" },
+                    { error: "Invalid browser action" },
+                    { status: 400 }
+                );
+            }
+
+            if (
+                typeof action.selector !== "string" ||
+                !action.selector.trim()
+            ) {
+                return NextResponse.json(
+                    { error: "Browser action selector is required" },
+                    { status: 400 }
+                );
+            }
+
+            if (
+                action.type === "goto" &&
+                !isValidUrl(action.value)
+            ) {
+                return NextResponse.json(
+                    {
+                        error:
+                            "goto actions require a valid HTTP(S) URL",
+                    },
                     { status: 400 }
                 );
             }
@@ -58,12 +108,19 @@ export async function POST(req: Request) {
             api_timeout: 300,
         });
 
-        browser = await chromium.connectOverCDP(session.connectUrl);
+        logs.push(`Browserbase session created: ${session.id}`);
+
+        browser = await chromium.connectOverCDP(
+            session.connectUrl
+        );
 
         const context = browser.contexts()[0];
-        const page = context.pages()[0] || await context.newPage();
 
-        const logs: string[] = [];
+        const page =
+            context.pages()[0] ||
+            (await context.newPage());
+
+        logs.push(`Opening target: ${url}`);
 
         await page.goto(url, {
             waitUntil: "domcontentloaded",
@@ -72,38 +129,75 @@ export async function POST(req: Request) {
         logs.push(`Opened ${url}`);
 
         for (const action of steps) {
-            logs.push(`Executing: ${JSON.stringify(action)}`);
+            logs.push(
+                `Action: ${action.type} | ${action.selector}`
+            );
 
             if (action.type === "goto") {
                 await page.goto(action.value, {
                     waitUntil: "domcontentloaded",
                 });
+
+                logs.push(`Navigated to ${action.value}`);
             }
 
             else if (action.type === "click") {
-                await page.getByText(action.selector, {
-                    exact: false,
-                }).first().click({ timeout: 5000 });
+                const locator = page.getByText(
+                    action.selector,
+                    { exact: true }
+                ).first();
+
+                await locator.waitFor({
+                    state: "visible",
+                    timeout: 10000,
+                });
+
+                await locator.click();
+
+                logs.push(
+                    `Clicked "${action.selector}"`
+                );
             }
 
             else if (action.type === "fill") {
-                await page.locator(action.selector).fill(action.value ?? "");
+                const locator =
+                    page.locator(action.selector).first();
+
+                await locator.waitFor({
+                    state: "visible",
+                    timeout: 10000,
+                });
+
+                await locator.fill(
+                    action.value ?? ""
+                );
+
+                logs.push(
+                    `Filled "${action.selector}"`
+                );
             }
 
             else if (action.type === "expectText") {
-                await page.getByText(action.selector, {
-                    exact: false,
-                }).first().waitFor({ timeout: 5000 });
+                const locator = page.getByText(
+                    action.selector,
+                    { exact: false }
+                ).first();
 
-                logs.push(`Verified text: ${action.selector}`);
-            }
+                await locator.waitFor({
+                    state: "visible",
+                    timeout: 10000,
+                });
 
-            else {
-                logs.push(`Unsupported action: ${action.type}`);
+                logs.push(
+                    `Verified "${action.selector}"`
+                );
             }
         }
 
         const title = await page.title();
+
+        logs.push("All actions completed successfully");
+
         await db.insert(testExecutions).values({
             id: crypto.randomUUID(),
             userId,
@@ -114,38 +208,50 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             success: true,
+            status: "passed",
             sessionId: session.id,
             title,
             logs,
         });
     } catch (error) {
-        if (session) {
-            await db.insert(testExecutions).values({
-                id: crypto.randomUUID(),
-                userId: (await auth()).userId!,
-                status: "failed",
-                sessionId: session.id,
-                logs: JSON.stringify([
-                    "Browser execution failed",
-                    String(error),
-                ]),
-            });
-        }
         console.error("BROWSER ERROR:", error);
 
-        const status = typeof error === "object" && error !== null && "status" in error
-            ? error.status
-            : undefined;
+        logs.push(
+            `Execution failed: ${error instanceof Error
+                ? error.message
+                : String(error)
+            }`
+        );
 
-        if (status === 429) {
-            return NextResponse.json(
-                { error: "Browser capacity is currently full. Please try again shortly." },
-                { status: 429 }
+        try {
+            const { userId } = await auth();
+
+            if (userId && session) {
+                await db.insert(testExecutions).values({
+                    id: crypto.randomUUID(),
+                    userId,
+                    status: "failed",
+                    sessionId: session.id,
+                    logs: JSON.stringify(logs),
+                });
+            }
+        } catch (dbError) {
+            console.error(
+                "EXECUTION SAVE ERROR:",
+                dbError
             );
         }
 
         return NextResponse.json(
-            { error: "Browser execution failed" },
+            {
+                success: false,
+                status: "failed",
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Browser execution failed",
+                logs,
+            },
             { status: 500 }
         );
     } finally {
@@ -154,11 +260,17 @@ export async function POST(req: Request) {
         } finally {
             if (session) {
                 try {
-                    await browserbase.sessions.update(session.id, {
-                        status: "REQUEST_RELEASE",
-                    });
+                    await browserbase.sessions.update(
+                        session.id,
+                        {
+                            status: "REQUEST_RELEASE",
+                        }
+                    );
                 } catch (releaseError) {
-                    console.error("BROWSER SESSION RELEASE ERROR:", releaseError);
+                    console.error(
+                        "BROWSER SESSION RELEASE ERROR:",
+                        releaseError
+                    );
                 }
             }
         }
