@@ -246,6 +246,7 @@ export async function POST(req: Request) {
             {
                 success: false,
                 status: "failed",
+                sessionId: session?.id ?? null,
                 error:
                     error instanceof Error
                         ? error.message

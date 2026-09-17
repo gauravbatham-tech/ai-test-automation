@@ -9,7 +9,7 @@ export default function Dashboard() {
     const [tests, setTests] = useState<any[]>([]);
     const [targetUrl, setTargetUrl] = useState("");
     const [execution, setExecution] = useState<any>(null);
-
+    const [isRunning, setIsRunning] = useState(false);
     useEffect(() => {
         fetch("/api/auth/github/repos")
             .then((res) => res.json())
@@ -160,6 +160,7 @@ export default function Dashboard() {
                         </select>
 
                         <button
+                            disabled={isRunning}
                             onClick={async () => {
                                 const select = document.getElementById(
                                     "selected-test"
@@ -172,65 +173,98 @@ export default function Dashboard() {
                                     return;
                                 }
 
-                                if (!selectedTest?.steps?.length) {
-                                    alert("Selected test has no steps");
+                                if (!selectedTest?.actions?.length) {
+                                    alert("Selected test has no executable actions");
                                     return;
                                 }
 
-                                const response = await fetch("/api/browser/run", {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                        url: targetUrl,
-                                        steps: selectedTest.actions,
-                                    }),
+                                setIsRunning(true);
+                                setExecution({
+                                    status: "running",
+                                    logs: ["Starting browser execution..."],
                                 });
 
-                                const data = await response.json();
+                                try {
+                                    const response = await fetch("/api/browser/run", {
+                                        method: "POST",
+                                        headers: {
+                                            "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                            url: targetUrl,
+                                            steps: selectedTest.actions,
+                                        }),
+                                    });
 
-                                if (!response.ok) {
-                                    alert(data.error);
-                                    return;
+                                    const data = await response.json();
+
+                                    setExecution(data);
+
+                                } catch (error) {
+                                    setExecution({
+                                        status: "failed",
+                                        success: false,
+                                        logs: [
+                                            "Could not connect to execution service.",
+                                            String(error),
+                                        ],
+                                    });
+                                } finally {
+                                    setIsRunning(false);
                                 }
-
-                                setExecution(data);
                             }}
-                            className="mt-4 rounded-lg bg-black px-5 py-2 text-white"
                         >
-                            Run Selected Test
+                            {isRunning ? "Running..." : "Run Selected Test"}
                         </button>
                     </div>
                 )}
             </div>
 
             {execution && (
-                <div className="mt-8 rounded-lg border p-6">
-                    <h2 className="text-2xl font-bold">
-                        Execution Result
-                    </h2>
+                <div className="mt-6 rounded-lg border p-6">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold">
+                            Execution Result
+                        </h3>
 
-                    <p className="mt-3">
-                        Status:{" "}
-                        <span className="font-semibold">
-                            {execution.success ? "PASSED" : "FAILED"}
+                        <span
+                            className={`rounded-full px-3 py-1 text-sm font-semibold ${execution.status === "passed"
+                                ? "bg-green-100 text-green-700"
+                                : execution.status === "failed"
+                                    ? "bg-red-100 text-red-700"
+                                    : "bg-yellow-100 text-yellow-700"
+                                }`}
+                        >
+                            {execution.status?.toUpperCase()}
                         </span>
-                    </p>
+                    </div>
 
-                    <p className="mt-2">
-                        Page Title: {execution.title}
-                    </p>
+                    {execution.title && (
+                        <p className="mt-3">
+                            Page Title: <strong>{execution.title}</strong>
+                        </p>
+                    )}
 
-                    <h3 className="mt-4 font-semibold">Execution Logs</h3>
+                    {execution.error && (
+                        <div className="mt-4 rounded-lg bg-red-50 p-4 text-red-700">
+                            <strong>Error:</strong>
+                            <p className="mt-1">{execution.error}</p>
+                        </div>
+                    )}
 
-                    <pre className="mt-2 overflow-auto rounded-lg bg-gray-100 p-4 text-sm">
+                    <h4 className="mt-5 font-semibold">
+                        Execution Logs
+                    </h4>
+
+                    <pre className="mt-2 max-h-80 overflow-auto rounded-lg bg-gray-100 p-4 text-sm">
                         {execution.logs?.join("\n")}
                     </pre>
 
-                    <p className="mt-4 text-sm">
-                        Browserbase Session: {execution.sessionId}
-                    </p>
+                    {execution.sessionId && (
+                        <p className="mt-4 text-sm text-gray-500">
+                            Session ID: {execution.sessionId}
+                        </p>
+                    )}
                 </div>
             )}
 
