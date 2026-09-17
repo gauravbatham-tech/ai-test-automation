@@ -52,6 +52,7 @@ export async function POST(req: Request) {
             files,
             targetUrl,
             demoEmail,
+            demoPassword,
             globalInstructions,
         } = await req.json();
 
@@ -161,6 +162,9 @@ ${targetUrl || "Not provided"}
 
 DEMO EMAIL:
 ${demoEmail || "Not provided"}
+
+DEMO PASSWORD:
+${demoPassword || "Not provided"}
 
 GLOBAL QA INSTRUCTIONS:
 ${globalInstructions || "No additional instructions"}

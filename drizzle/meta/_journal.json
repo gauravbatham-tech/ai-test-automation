@@ -57,6 +57,13 @@
       "when": 1789644724440,
       "tag": "0007_low_nico_minoru",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789652744700,
+      "tag": "0008_fancy_bushwacker",
+      "breakpoints": true
     }
   ]
 }

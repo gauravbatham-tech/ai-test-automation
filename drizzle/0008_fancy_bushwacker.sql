@@ -1,0 +1,1 @@
+ALTER TABLE "test_cases" ALTER COLUMN "actions" DROP DEFAULT;

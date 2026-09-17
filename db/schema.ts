@@ -14,7 +14,7 @@ export const testCases = pgTable("test_cases", {
     title: text("title").notNull(),
     category: text("category").notNull(),
     steps: text("steps").notNull(),
-    actions: text("actions").notNull().default("[]"),
+    actions: text("actions").notNull(),
     expectedResult: text("expected_result").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
