@@ -2,7 +2,6 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const isPublicRoute = createRouteMatcher([
-  '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/(.*)',
@@ -16,10 +15,10 @@ const hasClerkKey = Boolean(
 
 const clerkHandler = hasClerkKey
   ? clerkMiddleware((auth, request) => {
-      if (!isPublicRoute(request)) {
-        auth().protect();
-      }
-    })
+    if (!isPublicRoute(request)) {
+      auth().protect();
+    }
+  })
   : null;
 
 export default function middleware(request: NextRequest, event: any) {
