@@ -1,16 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  X, 
-  Key, 
-  Cpu, 
-  Globe, 
-  Terminal, 
-  Check, 
-  Sliders, 
+import {
+  X,
+  Key,
+  Cpu,
+  Globe,
+  Terminal,
+  Check,
+  Sliders,
   ExternalLink,
-  ShieldAlert,
   Sparkles
 } from 'lucide-react';
 import { AppConfig } from '@/types';
@@ -195,51 +194,6 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                 className="w-full rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
               />
             </div>
-          </div>
-
-          {/* Clerk Authentication Configuration */}
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-medium text-slate-200">
-                <ShieldAlert className="h-3.5 w-3.5 text-violet-400" />
-                <span>Clerk Authentication (App & QA)</span>
-              </span>
-              <a
-                href="https://dashboard.clerk.com"
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 text-[11px] text-cyan-400 hover:underline"
-              >
-                Clerk Dashboard <ExternalLink className="h-2.5 w-2.5" />
-              </a>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-400">Publishable Key</label>
-                <input
-                  type="text"
-                  placeholder="pk_test_... (or pk_live_...)"
-                  value={formData.clerkPublishableKey || ''}
-                  onChange={(e) => setFormData({ ...formData, clerkPublishableKey: e.target.value })}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-400">Secret Key (Server/Env)</label>
-                <input
-                  type="password"
-                  placeholder="sk_test_..."
-                  value={formData.clerkSecretKey || ''}
-                  onChange={(e) => setFormData({ ...formData, clerkSecretKey: e.target.value })}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
-                />
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-500 leading-relaxed">
-              Enables live Clerk Sign In/Up modals, UserButton profile sessions, and automated Clerk authentication E2E testing!
-            </p>
           </div>
 
           {/* Action buttons */}
