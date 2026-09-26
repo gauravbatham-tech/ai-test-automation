@@ -19,8 +19,8 @@ interface MockAuthContextType {
 const MockAuthContext = createContext<MockAuthContextType>({
   isSignedIn: false,
   user: null,
-  signIn: () => {},
-  signOut: () => {},
+  signIn: () => { },
+  signOut: () => { },
   isClerkConfigured: false,
 });
 
@@ -98,7 +98,17 @@ export const ClerkAuthControl: React.FC<{ onOpenClerkGuide?: () => void }> = ({ 
         <SignedIn>
           <div className="flex items-center gap-2">
             <span className="hidden sm:inline text-xs text-slate-300 font-medium">Clerk Auth</span>
-            <UserButton afterSignOutUrl="/" />
+            <UserButton
+              afterSignOutUrl="/"
+              appearance={{
+                elements: {
+                  userButtonPopoverCard: 'bg-[#0d1322] border border-slate-700 shadow-xl',
+                  userButtonPopoverActionButton: 'text-slate-100 hover:bg-slate-800',
+                  userButtonPopoverActionButtonText: 'text-slate-100',
+                  userButtonPopoverActionButtonIcon: 'text-slate-400',
+                },
+              }}
+            />
           </div>
         </SignedIn>
         <SignedOut>
