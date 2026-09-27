@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  GitBranch, 
-  Search, 
-  Sparkles, 
-  Zap, 
-  FileCode, 
-  ShieldCheck, 
-  Server, 
-  Layout, 
-  CheckCircle2, 
+import {
+  GitBranch,
+  Search,
+  Sparkles,
+  Zap,
+  FileCode,
+  ShieldCheck,
+  Server,
+  Layout,
+  CheckCircle2,
   ArrowRight,
   TrendingDown,
   Layers,
@@ -54,7 +54,7 @@ export const RepoInspector: React.FC<RepoInspectorProps> = ({
   }) || [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Hero Banner / Input Section */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-[#090d16] p-6 sm:p-8 backdrop-blur-xl">
         <div className="absolute top-0 right-0 -mr-20 -mt-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
@@ -195,11 +195,10 @@ export const RepoInspector: React.FC<RepoInspectorProps> = ({
                   <button
                     key={filter}
                     onClick={() => setSelectedRouteFilter(filter)}
-                    className={`rounded-lg px-2.5 py-1 capitalize transition ${
-                      selectedRouteFilter === filter
+                    className={`rounded-lg px-2.5 py-1 capitalize transition ${selectedRouteFilter === filter
                         ? 'bg-cyan-500/20 text-cyan-300 font-semibold'
                         : 'text-slate-400 hover:text-slate-200'
-                    }`}
+                      }`}
                   >
                     {filter === 'auth-route' ? 'Auth' : filter}
                   </button>
@@ -220,15 +219,14 @@ export const RepoInspector: React.FC<RepoInspectorProps> = ({
                         {route.path}
                       </span>
                       <span
-                        className={`rounded-md px-2 py-0.5 text-[10px] font-semibold border ${
-                          route.type === 'auth-route'
+                        className={`rounded-md px-2 py-0.5 text-[10px] font-semibold border ${route.type === 'auth-route'
                             ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
                             : route.type === 'protected'
-                            ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                            : route.type === 'api'
-                            ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
-                            : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                        }`}
+                              ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                              : route.type === 'api'
+                                ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
+                                : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                          }`}
                       >
                         {route.type.toUpperCase()}
                       </span>
@@ -287,6 +285,69 @@ export const RepoInspector: React.FC<RepoInspectorProps> = ({
           )}
         </div>
       )}
+
+      <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/40 backdrop-blur-sm">
+        <div className="border-b border-slate-800 p-6 sm:p-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">A practical QA workflow</p>
+            <h2 className="mt-2 text-2xl font-bold text-white">What AutoQA.ai does</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              AutoQA.ai turns a GitHub repository into a focused, reviewable test workflow. It finds application routes and authentication entry points, uses that context to shape test cases, then helps you run selected checks in a cloud browser and review what happened.
+            </p>
+          </div>
+          <div className="mt-7 grid gap-3 md:grid-cols-3">
+            <div className="border-l-2 border-cyan-400 pl-4 py-1">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><GitBranch className="h-4 w-4 text-cyan-400" />Focused discovery</div>
+              <p className="mt-2 text-xs leading-5 text-slate-400">Inspects useful route and auth files instead of treating every repository asset as test context.</p>
+            </div>
+            <div className="border-l-2 border-violet-400 pl-4 py-1">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Sparkles className="h-4 w-4 text-violet-400" />Structured test ideas</div>
+              <p className="mt-2 text-xs leading-5 text-slate-400">Builds a test matrix for UI, API, authentication, and integration flows for you to review.</p>
+            </div>
+            <div className="border-l-2 border-emerald-400 pl-4 py-1">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><ShieldCheck className="h-4 w-4 text-emerald-400" />Observable runs</div>
+              <p className="mt-2 text-xs leading-5 text-slate-400">Collects execution results and diagnostics so failures are easier to investigate.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">How to use it</p>
+            <h3 className="mt-2 text-xl font-bold text-white">Four steps, one test run</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-400">The navigation at the top follows the same sequence. You can start with the example data already loaded or inspect a repository of your own.</p>
+          </div>
+          <ol className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+            <li className="flex gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-xs font-bold text-cyan-300">01</span>
+              <div><h4 className="text-sm font-semibold text-white">Inspect a repository</h4><p className="mt-1 text-xs leading-5 text-slate-400">Enter a GitHub URL or choose a quick preset. Add a GitHub token in Settings if you need private repository access or higher API limits.</p></div>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-500/30 bg-violet-500/10 text-xs font-bold text-violet-300">02</span>
+              <div><h4 className="text-sm font-semibold text-white">Review the test matrix</h4><p className="mt-1 text-xs leading-5 text-slate-400">Continue to the generated cases, review their steps, and select the checks you want to run. Configure a Gemini API key to use AI generation.</p></div>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs font-bold text-amber-300">03</span>
+              <div><h4 className="text-sm font-semibold text-white">Run selected tests</h4><p className="mt-1 text-xs leading-5 text-slate-400">Set the target application URL and Browserbase credentials in Settings, then launch the selected cases in the cloud runner.</p></div>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-xs font-bold text-emerald-300">04</span>
+              <div><h4 className="text-sm font-semibold text-white">Explore the report</h4><p className="mt-1 text-xs leading-5 text-slate-400">Check pass rates, run details, and available replay data. Ask Gemini to diagnose a failure or export the QA report as JSON.</p></div>
+            </li>
+          </ol>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-800 bg-slate-950/40 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <div className="flex items-start gap-3">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+            <p className="text-xs leading-5 text-slate-400"><span className="font-semibold text-slate-200">Before a live run:</span> make sure the target app is reachable from the cloud browser and the relevant service credentials are set in Settings.</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 text-xs font-medium text-cyan-300">
+            <span>Start with the repository field above</span>
+            <ChevronRight className="h-4 w-4" />
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
