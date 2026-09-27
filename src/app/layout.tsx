@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+// @ts-expect-error Next.js loads global CSS as a side effect; TypeScript may not
+// have a declaration for this stylesheet import.
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
 
 export const metadata: Metadata = {
-  title: 'AutoQA Agent | AI-Powered E2E & QA Testing Automation',
+  title: 'Graphify | AI-Powered E2E & QA Testing Automation',
   description: 'Automated QA testing agent powered by Google Gemini, GitHub API, Browserbase Cloud Playwright execution, and Clerk Authentication.',
 };
 
