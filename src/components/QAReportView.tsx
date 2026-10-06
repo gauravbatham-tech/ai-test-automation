@@ -21,10 +21,13 @@ import {
   Code2, 
   Check, 
   ChevronRight, 
+  ChevronLeft,
   Activity,
-  FileText
+  FileText,
+  Tv
 } from 'lucide-react';
 import { TestCase, TestCategory, AppConfig } from '@/types';
+import { BrowserbaseSessionModal } from './BrowserbaseSessionModal';
 
 interface QAReportViewProps {
   testCases: TestCase[];
@@ -45,7 +48,9 @@ export const QAReportView: React.FC<QAReportViewProps> = ({
   );
   const [activeTab, setActiveTab] = useState<'video' | 'steps' | 'network' | 'logs'>('video');
   const [isPlayingReplay, setIsPlayingReplay] = useState(false);
-  const [replayProgress, setReplayProgress] = useState(0);
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [isBrowserbaseModalOpen, setIsBrowserbaseModalOpen] = useState(false);
 
   const selectedTest = testCases.find((t) => t.id === selectedTestId) || testCases[0];
 
@@ -72,22 +77,30 @@ export const QAReportView: React.FC<QAReportViewProps> = ({
     }
   });
 
-  // Replay playback ticker
+  // Replay playback ticker synchronized with steps
   React.useEffect(() => {
     let interval: any;
-    if (isPlayingReplay) {
+    const testSteps = selectedTest?.steps || [];
+    if (isPlayingReplay && testSteps.length > 0) {
+      const stepDuration = Math.max(500, 1500 / playbackSpeed);
       interval = setInterval(() => {
-        setReplayProgress((prev) => {
-          if (prev >= 100) {
+        setActiveStepIndex((prev) => {
+          if (prev >= testSteps.length - 1) {
             setIsPlayingReplay(false);
-            return 0;
+            return prev;
           }
-          return prev + 5;
+          return prev + 1;
         });
-      }, 200);
+      }, stepDuration);
     }
     return () => clearInterval(interval);
-  }, [isPlayingReplay]);
+  }, [isPlayingReplay, selectedTest, playbackSpeed]);
+
+  // Reset step index when selected test changes
+  React.useEffect(() => {
+    setActiveStepIndex(0);
+    setIsPlayingReplay(false);
+  }, [selectedTestId]);
 
   // Export JSON Report
   const handleExportJSON = () => {
@@ -240,7 +253,7 @@ export const QAReportView: React.FC<QAReportViewProps> = ({
                   key={t.id}
                   onClick={() => {
                     setSelectedTestId(t.id);
-                    setReplayProgress(0);
+                    setActiveStepIndex(0);
                     setIsPlayingReplay(false);
                   }}
                   className={`w-full text-left rounded-xl border p-3 text-xs transition ${
@@ -378,15 +391,15 @@ export const QAReportView: React.FC<QAReportViewProps> = ({
                 </div>
 
                 {selectedTest.executionResult?.browserbaseSessionId && (
-                  <a
-                    href={selectedTest.executionResult.replayUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] font-mono text-cyan-400 hover:underline"
+                  <button
+                    onClick={() => setIsBrowserbaseModalOpen(true)}
+                    className="flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/40 px-2.5 py-1 text-[11px] font-mono text-cyan-300 hover:bg-cyan-900/50 hover:border-cyan-400 transition shadow-sm"
+                    title="Open Browserbase Cloud Session Details"
                   >
+                    <Terminal className="h-3 w-3 text-cyan-400" />
                     <span>Browserbase Session</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  </button>
                 )}
               </div>
 
@@ -394,67 +407,205 @@ export const QAReportView: React.FC<QAReportViewProps> = ({
               {activeTab === 'video' && (
                 <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 p-4 space-y-4">
                   {/* Video Viewport Screen */}
-                  <div className="relative aspect-video w-full rounded-2xl bg-gradient-to-tr from-slate-950 via-[#0a101d] to-slate-900 border border-slate-800/80 flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+                  <div className="relative aspect-video w-full rounded-2xl bg-gradient-to-b from-[#0b101e] to-[#04060d] border border-slate-800/80 flex flex-col justify-between p-5 overflow-hidden shadow-2xl">
                     <div className="absolute inset-0 bg-grid-pattern opacity-10 pointer-events-none" />
 
-                    {/* Dynamic Simulated Screen Content based on replayProgress */}
-                    <div className="relative z-10 space-y-3 max-w-md">
-                      <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-900/90 px-3 py-1 text-[11px] font-mono text-cyan-300 border border-slate-800">
-                        <span>ROUTE: {config.baseUrl}{selectedTest.targetRoute}</span>
-                      </div>
-
-                      <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 text-left font-mono text-xs space-y-1.5">
-                        <div className="flex items-center justify-between text-slate-400 text-[10px]">
-                          <span>BROWSERBASE SESSION</span>
-                          <span className="text-emerald-400">1280x800 @ 60fps</span>
+                    {/* Browser Chrome Header inside player */}
+                    <div className="relative z-10 flex items-center justify-between border-b border-slate-800/80 pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1.5">
+                          <div className="h-2 w-2 rounded-full bg-rose-500/80" />
+                          <div className="h-2 w-2 rounded-full bg-amber-500/80" />
+                          <div className="h-2 w-2 rounded-full bg-emerald-500/80" />
                         </div>
-                        <p className="text-white font-semibold">{selectedTest.title}</p>
-                        <p className="text-slate-400 text-[11px]">
-                          Current Step: {Math.min(selectedTest.steps.length, Math.floor((replayProgress / 100) * selectedTest.steps.length) + 1)} / {selectedTest.steps.length}
-                        </p>
+                        <div className="flex items-center gap-1.5 rounded-lg bg-slate-900/90 px-2.5 py-1 text-[10px] font-mono text-slate-300 border border-slate-800">
+                          <Globe className="h-3 w-3 text-cyan-400" />
+                          <span className="truncate max-w-[200px] sm:max-w-xs">{config.baseUrl}{selectedTest.targetRoute}</span>
+                        </div>
                       </div>
 
-                      <div className="text-[11px] text-slate-400">
-                        {isPlayingReplay ? 'Replaying cloud browser session recording...' : 'Click Play to stream video replay'}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/20">
+                          STEP {activeStepIndex + 1}/{selectedTest.steps.length || 1}
+                        </span>
+                        <button
+                          onClick={() => setIsBrowserbaseModalOpen(true)}
+                          className="flex items-center gap-1 text-[10px] font-mono text-cyan-400 hover:text-cyan-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800"
+                          title="Expand Browserbase cloud session inspector"
+                        >
+                          <Tv className="h-3 w-3" />
+                          <span>Inspect Session</span>
+                        </button>
                       </div>
+                    </div>
+
+                    {/* Dynamic Rendered Step State */}
+                    <div className="relative z-10 my-auto flex flex-col items-center justify-center p-4">
+                      {selectedTest.steps[activeStepIndex] && (
+                        <div className="w-full max-w-lg rounded-2xl border border-cyan-500/30 bg-slate-900/90 p-5 shadow-2xl backdrop-blur-md space-y-3 text-left">
+                          <div className="flex items-center justify-between">
+                            <span className="rounded-md bg-cyan-500/20 px-2.5 py-0.5 font-mono text-[10px] font-bold text-cyan-300 border border-cyan-500/40 uppercase">
+                              [{selectedTest.steps[activeStepIndex].action.toUpperCase()}]
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-400 truncate max-w-[220px]">
+                              Expected: {selectedTest.steps[activeStepIndex].expected}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-mono text-slate-400 uppercase">Target Element:</span>
+                            <p className="font-mono text-xs font-bold text-cyan-300 bg-slate-950 p-2.5 rounded-xl border border-slate-800 mt-1 truncate">
+                              {selectedTest.steps[activeStepIndex].target}
+                            </p>
+                          </div>
+
+                          {selectedTest.steps[activeStepIndex].value && (
+                            <div>
+                              <span className="text-[10px] font-mono text-slate-400 uppercase">Simulated Input Value:</span>
+                              <p className="font-mono text-xs text-emerald-300 bg-slate-950 p-2.5 rounded-xl border border-slate-800 mt-1">
+                                &ldquo;{selectedTest.steps[activeStepIndex].value}&rdquo;
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
+                            <span className="text-slate-400 font-mono">Assertion State:</span>
+                            {activeStepIndex === selectedTest.steps.length - 1 && selectedTest.status === 'failed' ? (
+                              <span className="font-bold text-rose-400 flex items-center gap-1">
+                                <XCircle className="h-3.5 w-3.5" />
+                                FAILED
+                              </span>
+                            ) : (
+                              <span className="font-bold text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                PASSED
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom Viewport Bar */}
+                    <div className="relative z-10 flex items-center justify-between border-t border-slate-800/80 pt-2 text-[10px] font-mono text-slate-400">
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>Browserbase Cloud Replay Telemetry</span>
+                      </span>
+                      <span>Session ID: {selectedTest.executionResult?.browserbaseSessionId || 'bb_sess_cloud'}</span>
                     </div>
                   </div>
 
-                  {/* Video Player Scrubber & Controls */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <div className="flex items-center gap-3">
+                  {/* Replay Controls & Scrubber */}
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400">
+                      {/* Buttons */}
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setIsPlayingReplay(!isPlayingReplay)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-black hover:bg-cyan-400 transition"
+                          onClick={() => setActiveStepIndex((prev) => Math.max(0, prev - 1))}
+                          disabled={activeStepIndex === 0}
+                          className="p-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white disabled:opacity-30 transition"
+                          title="Previous Step"
                         >
-                          {isPlayingReplay ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
+                          <ChevronLeft className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => setReplayProgress(0)}
-                          className="p-1.5 text-slate-400 hover:text-white"
+                          onClick={() => setIsPlayingReplay(!isPlayingReplay)}
+                          className="flex items-center justify-center h-8 px-3.5 gap-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-semibold text-xs shadow-md shadow-cyan-500/20 hover:from-cyan-400 hover:to-indigo-500 transition"
+                        >
+                          {isPlayingReplay ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+                          <span>{isPlayingReplay ? 'Pause' : 'Play Replay'}</span>
+                        </button>
+                        <button
+                          onClick={() => setActiveStepIndex((prev) => Math.min(selectedTest.steps.length - 1, prev + 1))}
+                          disabled={activeStepIndex >= selectedTest.steps.length - 1}
+                          className="p-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white disabled:opacity-30 transition"
+                          title="Next Step"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => { setActiveStepIndex(0); setIsPlayingReplay(false); }}
+                          className="p-1.5 text-slate-400 hover:text-white transition"
                           title="Reset Replay"
                         >
                           <RotateCcw className="h-4 w-4" />
                         </button>
-                        <span className="font-mono text-xs text-slate-300">
-                          {((replayProgress / 100) * (selectedTest.executionResult?.durationMs || 1500) / 1000).toFixed(1)}s / {((selectedTest.executionResult?.durationMs || 1500) / 1000).toFixed(1)}s
-                        </span>
                       </div>
 
-                      <span className="text-[11px] text-slate-500 font-mono">
-                        Session: {selectedTest.executionResult?.browserbaseSessionId || 'Cloud Recording'}
-                      </span>
+                      {/* Step scrubber */}
+                      <div className="flex-1 max-w-sm flex items-center gap-2.5">
+                        <span className="font-mono text-xs text-slate-300 shrink-0">
+                          Step {activeStepIndex + 1}/{selectedTest.steps.length}
+                        </span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={Math.max(0, selectedTest.steps.length - 1)}
+                          value={activeStepIndex}
+                          onChange={(e) => {
+                            setActiveStepIndex(Number(e.target.value));
+                            setIsPlayingReplay(false);
+                          }}
+                          className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                        />
+                      </div>
+
+                      {/* Speed & Inspector trigger */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 text-[11px]">
+                          <span className="text-slate-500">Speed:</span>
+                          {[0.5, 1, 2].map((spd) => (
+                            <button
+                              key={spd}
+                              onClick={() => setPlaybackSpeed(spd)}
+                              className={`px-1.5 py-0.5 rounded font-mono transition ${
+                                playbackSpeed === spd
+                                  ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              {spd}x
+                            </button>
+                          ))}
+                        </div>
+
+                        <button
+                          onClick={() => setIsBrowserbaseModalOpen(true)}
+                          className="flex items-center gap-1 rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-900/40 transition"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          <span>Session</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={replayProgress}
-                      onChange={(e) => setReplayProgress(Number(e.target.value))}
-                      className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
-                    />
+                    {/* Step Sequence Quick Selector */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                      {selectedTest.steps.map((st, i) => {
+                        const isCurrent = i === activeStepIndex;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              setActiveStepIndex(i);
+                              setIsPlayingReplay(false);
+                            }}
+                            className={`text-left rounded-xl border p-2 text-xs transition ${
+                              isCurrent
+                                ? 'border-cyan-500 bg-cyan-950/30 text-white shadow-sm ring-1 ring-cyan-500/40'
+                                : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between font-mono text-[10px] mb-0.5">
+                              <span className="text-cyan-400 font-bold">STEP {st.order}</span>
+                              <span className="uppercase text-[9px]">{st.action}</span>
+                            </div>
+                            <p className="truncate text-slate-300 font-mono text-[10px]">{st.target}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -512,6 +663,14 @@ export const QAReportView: React.FC<QAReportViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Browserbase Session Full Modal Inspector */}
+      <BrowserbaseSessionModal
+        isOpen={isBrowserbaseModalOpen}
+        onClose={() => setIsBrowserbaseModalOpen(false)}
+        testCase={selectedTest}
+        config={config}
+      />
     </div>
   );
 };

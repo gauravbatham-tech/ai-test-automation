@@ -26,7 +26,7 @@ import {
   CircleCheck,
   ArrowUpRight
 } from 'lucide-react';
-import { InspectionResult, RouteItem } from '@/types';
+import { InspectionResult, RouteItem, GitHubUser } from '@/types';
 import { REPO_PRESETS, RepoPreset } from '@/lib/presets';
 
 interface RepoInspectorProps {
@@ -35,6 +35,9 @@ interface RepoInspectorProps {
   isLoading: boolean;
   onProceedToMatrix: () => void;
   onSelectPreset: (preset: RepoPreset) => void;
+  onOpenConnectRepo?: () => void;
+  connectedUser?: GitHubUser | null;
+  selectedRepoFullName?: string;
 }
 
 export const RepoInspector: React.FC<RepoInspectorProps> = ({
@@ -43,10 +46,20 @@ export const RepoInspector: React.FC<RepoInspectorProps> = ({
   isLoading,
   onProceedToMatrix,
   onSelectPreset,
+  onOpenConnectRepo,
+  connectedUser,
+  selectedRepoFullName,
 }) => {
   const [repoInput, setRepoInput] = useState('https://github.com/shadcn-ui/taxonomy');
   const [selectedRouteFilter, setSelectedRouteFilter] = useState<'all' | 'page' | 'api' | 'auth-route' | 'protected'>('all');
   const [selectedSnippetFile, setSelectedSnippetFile] = useState<string | null>(null);
+
+  // Sync repoInput when a repository is selected from ConnectRepoModal
+  React.useEffect(() => {
+    if (selectedRepoFullName) {
+      setRepoInput(`https://github.com/${selectedRepoFullName}`);
+    }
+  }, [selectedRepoFullName]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,6 +133,39 @@ export const RepoInspector: React.FC<RepoInspectorProps> = ({
               )}
             </button>
           </form>
+
+          {/* Connected GitHub Repo Action Banner / Pill */}
+          {onOpenConnectRepo && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <Github className="h-4 w-4" />
+                </div>
+                {connectedUser ? (
+                  <div>
+                    <span className="font-semibold text-white">Connected: @{connectedUser.login}</span>
+                    <span className="text-slate-400 ml-1.5 hidden sm:inline">
+                      {selectedRepoFullName ? `• Active: ${selectedRepoFullName}` : '• Select any repository from your account'}
+                    </span>
+                  </div>
+                ) : (
+                  <div>
+                    <span className="font-semibold text-slate-200">Connect GitHub Account</span>
+                    <span className="text-slate-400 ml-1.5 hidden sm:inline">• Browse all your repositories directly</span>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenConnectRepo}
+                className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:border-cyan-300 transition"
+              >
+                <span>{connectedUser ? 'Browse My Repos' : 'Connect Repo'}</span>
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+          )}
 
           {/* Quick Presets */}
           <div className="mt-5 flex flex-wrap items-center gap-2 pt-2">

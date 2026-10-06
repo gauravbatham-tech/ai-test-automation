@@ -142,3 +142,48 @@ export interface TestRunReport {
   testCases: TestCase[];
   categoryStats: Record<TestCategory, { total: number; passed: number; failed: number }>;
 }
+
+export interface GitHubUser {
+  login: string;
+  id: number;
+  avatar_url: string;
+  html_url: string;
+  name: string | null;
+  bio: string | null;
+  public_repos: number;
+  total_private_repos?: number;
+}
+
+export interface GitHubRepository {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  html_url: string;
+  description: string | null;
+  fork: boolean;
+  stargazers_count: number;
+  forks_count: number;
+  language: string | null;
+  default_branch: string;
+  updated_at: string;
+  owner: {
+    login: string;
+    avatar_url: string;
+  };
+}
+
+export interface BrowserbaseSessionInfo {
+  id: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'ERROR' | 'TIMED_OUT';
+  connectUrl: string;
+  debuggerFullscreenUrl: string;
+  debuggerUrl?: string;
+  wsUrl?: string;
+  createdAt: string;
+  endedAt?: string;
+  durationMs?: number;
+  region?: string;
+  projectId?: string;
+  recordingUrl?: string;
+}

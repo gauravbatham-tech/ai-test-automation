@@ -10,15 +10,19 @@ import {
   CheckCircle2, 
   Sparkles, 
   Globe, 
-  ExternalLink 
+  ExternalLink,
+  Github
 } from 'lucide-react';
-import { AppConfig } from '@/types';
+import { AppConfig, GitHubUser } from '@/types';
 import { ClerkAuthControl } from './AuthProvider';
 
 interface NavbarProps {
   activeTab: 'inspect' | 'matrix' | 'runner' | 'report';
   setActiveTab: (tab: 'inspect' | 'matrix' | 'runner' | 'report') => void;
   onOpenSettings: () => void;
+  onOpenConnectRepo: () => void;
+  connectedUser: GitHubUser | null;
+  selectedRepoFullName?: string;
   config: AppConfig;
   testCount: number;
   completedCount: number;
@@ -28,6 +32,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   onOpenSettings,
+  onOpenConnectRepo,
+  connectedUser,
+  selectedRepoFullName,
   config,
   testCount,
   completedCount,
@@ -82,8 +89,36 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Controls & Settings & Clerk Auth */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Connect Repo Button */}
+          {connectedUser ? (
+            <button
+              onClick={onOpenConnectRepo}
+              className="flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-slate-900/90 px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:border-cyan-400 hover:bg-slate-800 transition shadow-sm"
+              title="Switch repository or GitHub account"
+            >
+              <img
+                src={connectedUser.avatar_url}
+                alt={connectedUser.login}
+                className="h-4 w-4 rounded-full border border-cyan-400/60 object-cover"
+              />
+              <span className="font-semibold text-cyan-300 truncate max-w-[100px] sm:max-w-[150px]">
+                {selectedRepoFullName ? selectedRepoFullName.split('/')[1] || selectedRepoFullName : connectedUser.login}
+              </span>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </button>
+          ) : (
+            <button
+              onClick={onOpenConnectRepo}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-violet-500/20 border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:from-cyan-500/30 hover:to-violet-500/30 hover:border-cyan-300 transition shadow-sm shadow-cyan-500/10"
+              title="Connect GitHub account and repositories"
+            >
+              <Github className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Connect Repo</span>
+            </button>
+          )}
+
           {/* Status Badges */}
-          <div className="hidden lg:flex items-center gap-2">
+          <div className="hidden xl:flex items-center gap-2">
             <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 border border-emerald-500/20">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>Browserbase</span>

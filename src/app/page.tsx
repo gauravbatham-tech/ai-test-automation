@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { ConfigModal } from '@/components/ConfigModal';
+import { ConnectRepoModal } from '@/components/ConnectRepoModal';
 import { RepoInspector } from '@/components/RepoInspector';
 import { TestMatrix } from '@/components/TestMatrix';
 import { CloudRunner } from '@/components/CloudRunner';
 import { QAReportView } from '@/components/QAReportView';
-import { AppConfig, InspectionResult, TestCase } from '@/types';
+import { AppConfig, InspectionResult, TestCase, GitHubUser, GitHubRepository } from '@/types';
 import { REPO_PRESETS, RepoPreset } from '@/lib/presets';
 import { generateHeuristicTestCases } from '@/lib/gemini';
 
@@ -26,6 +27,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'inspect' | 'matrix' | 'runner' | 'report'>('inspect');
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isConnectRepoModalOpen, setIsConnectRepoModalOpen] = useState(false);
+  const [connectedUser, setConnectedUser] = useState<GitHubUser | null>(null);
+  const [selectedRepoFullName, setSelectedRepoFullName] = useState<string>('');
 
   // Core Agent Lifecycle State
   const [inspection, setInspection] = useState<InspectionResult | null>(null);
@@ -46,6 +50,20 @@ export default function Home() {
       } catch (e) {
         console.error(e);
       }
+    }
+
+    const savedUser = localStorage.getItem('autoqa_github_user');
+    if (savedUser) {
+      try {
+        setConnectedUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const savedRepo = localStorage.getItem('autoqa_selected_repo');
+    if (savedRepo) {
+      setSelectedRepoFullName(savedRepo);
     }
 
     // Initialize with first preset for instant out-of-the-box readiness
@@ -269,6 +287,31 @@ export default function Home() {
     setTestCases((prev) => [newTest, ...prev]);
   };
 
+  // GitHub Account & Repository Selection Handlers
+  const handleConnectUser = (user: GitHubUser, token?: string, repos?: GitHubRepository[]) => {
+    setConnectedUser(user);
+    localStorage.setItem('autoqa_github_user', JSON.stringify(user));
+    if (token) {
+      const updatedConfig = { ...config, githubToken: token };
+      handleSaveConfig(updatedConfig);
+    }
+  };
+
+  const handleDisconnectGitHub = () => {
+    setConnectedUser(null);
+    setSelectedRepoFullName('');
+    localStorage.removeItem('autoqa_github_user');
+    localStorage.removeItem('autoqa_selected_repo');
+  };
+
+  const handleSelectRepo = (repo: GitHubRepository) => {
+    setSelectedRepoFullName(repo.full_name);
+    localStorage.setItem('autoqa_selected_repo', repo.full_name);
+    setIsConnectRepoModalOpen(false);
+    setActiveTab('inspect');
+    handleInspect(repo.html_url);
+  };
+
   const completedCount = testCases.filter((t) => t.status === 'passed' || t.status === 'failed').length;
 
   return (
@@ -277,6 +320,9 @@ export default function Home() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenSettings={() => setIsConfigModalOpen(true)}
+        onOpenConnectRepo={() => setIsConnectRepoModalOpen(true)}
+        connectedUser={connectedUser}
+        selectedRepoFullName={selectedRepoFullName}
         config={config}
         testCount={testCases.length}
         completedCount={completedCount}
@@ -290,6 +336,9 @@ export default function Home() {
             isLoading={isInspecting}
             onProceedToMatrix={() => setActiveTab('matrix')}
             onSelectPreset={handleSelectPreset}
+            onOpenConnectRepo={() => setIsConnectRepoModalOpen(true)}
+            connectedUser={connectedUser}
+            selectedRepoFullName={selectedRepoFullName}
           />
         )}
 
@@ -333,6 +382,17 @@ export default function Home() {
         onClose={() => setIsConfigModalOpen(false)}
         config={config}
         onSaveConfig={handleSaveConfig}
+      />
+
+      <ConnectRepoModal
+        isOpen={isConnectRepoModalOpen}
+        onClose={() => setIsConnectRepoModalOpen(false)}
+        connectedUser={connectedUser}
+        onConnectUser={handleConnectUser}
+        onDisconnect={handleDisconnectGitHub}
+        onSelectRepo={handleSelectRepo}
+        selectedRepoFullName={selectedRepoFullName}
+        initialToken={config.githubToken}
       />
     </div>
   );
