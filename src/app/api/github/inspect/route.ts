@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { inspectGitHubRepository } from '@/lib/github';
+import { inspectDeployedUrl } from '@/lib/crawler';
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,15 +8,21 @@ export async function POST(req: NextRequest) {
     const { repoUrl, githubToken } = body;
 
     if (!repoUrl) {
-      return NextResponse.json({ error: 'Repository URL is required.' }, { status: 400 });
+      return NextResponse.json({ error: 'Repository URL or Live URL is required.' }, { status: 400 });
     }
 
-    const inspection = await inspectGitHubRepository(repoUrl, githubToken || process.env.GITHUB_TOKEN);
+    const trimmed = repoUrl.trim();
+    if ((trimmed.startsWith('http://') || trimmed.startsWith('https://')) && !trimmed.includes('github.com')) {
+      const liveInspection = await inspectDeployedUrl(trimmed);
+      return NextResponse.json(liveInspection);
+    }
+
+    const inspection = await inspectGitHubRepository(trimmed, githubToken || process.env.GITHUB_TOKEN);
     return NextResponse.json(inspection);
   } catch (error: any) {
     console.error('Inspection API error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to inspect GitHub repository.' },
+      { error: error.message || 'Failed to inspect project source.' },
       { status: 500 }
     );
   }

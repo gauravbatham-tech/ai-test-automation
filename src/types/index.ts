@@ -68,6 +68,8 @@ export interface TestCase {
   selected?: boolean;
 }
 
+export type ProjectSourceType = 'github' | 'zip' | 'local-folder' | 'deployed-url' | 'manual';
+
 export interface RepositoryMetadata {
   owner: string;
   repo: string;
@@ -79,6 +81,11 @@ export interface RepositoryMetadata {
   authType?: 'next-auth' | 'clerk' | 'supabase' | 'jwt' | 'custom' | 'none';
   totalRawFiles: number;
   totalFilteredFiles: number;
+  sourceType?: ProjectSourceType;
+  liveUrl?: string;
+  zipFileName?: string;
+  projectName?: string;
+  projectType?: 'fullstack' | 'frontend' | 'api-service' | 'live-site';
 }
 
 export interface FileItem {
@@ -107,12 +114,33 @@ export interface TokenBudget {
   targetedFilesCount: number;
 }
 
+export interface CrawledPageInfo {
+  url: string;
+  path: string;
+  title?: string;
+  status?: number;
+  formsCount?: number;
+  linksCount?: number;
+}
+
+export interface DetectedFormInfo {
+  id?: string;
+  action?: string;
+  method?: string;
+  inputs: string[];
+  submitText?: string;
+}
+
 export interface InspectionResult {
   metadata: RepositoryMetadata;
   files: FileItem[];
   detectedRoutes: RouteItem[];
   tokenBudget: TokenBudget;
   sampleCodeSnippets: Record<string, string>;
+  sourceType?: ProjectSourceType;
+  liveUrl?: string;
+  crawledPages?: CrawledPageInfo[];
+  detectedForms?: DetectedFormInfo[];
 }
 
 export interface AppConfig {

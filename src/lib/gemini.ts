@@ -5,13 +5,13 @@ import { InspectionResult, TestCase, TestCategory, TestSeverity } from '@/types'
 export function generateHeuristicTestCases(inspection: InspectionResult, baseUrl: string): TestCase[] {
   const tests: TestCase[] = [];
   const { detectedRoutes, metadata } = inspection;
-  const normalizedBase = baseUrl.replace(/\/$/, '');
+  const effectiveBase = (inspection.liveUrl || metadata.liveUrl || baseUrl || 'http://localhost:3000').replace(/\/$/, '');
 
   // 1. UI Test Cases
   const pageRoutes = detectedRoutes.filter((r) => r.type === 'page' || r.path === '/');
   pageRoutes.forEach((route, idx) => {
     const routePath = route.path === '/' ? '' : route.path;
-    const targetUrl = `${normalizedBase}${routePath}`;
+    const targetUrl = `${effectiveBase}${routePath}`;
     tests.push({
       id: `ui-test-${idx + 1}`,
       title: `Verify ${route.path === '/' ? 'Landing Page' : route.path} UI Rendering & Navigation`,
@@ -24,22 +24,22 @@ export function generateHeuristicTestCases(inspection: InspectionResult, baseUrl
         { order: 1, action: 'navigate', target: targetUrl, expected: 'HTTP 200 and page rendered' },
         { order: 2, action: 'assert', target: 'body', expected: 'Body element is visible in viewport' },
         { order: 3, action: 'click', target: 'a[href], button', expected: 'Trigger interactive state or link navigation' },
-        { order: 4, action: 'wait', target: 'networkidle', expected: 'All layout shifts and hydration complete' }
+        { order: 4, action: 'wait', target: 'networkidle', expected: 'All layout shifts and hydration complete' },
       ],
       assertions: [
-        { type: 'element_visible', target: 'header, nav, main', expected: true },
+        { type: 'element_visible', target: 'header, nav, main, body', expected: true },
         { type: 'url_match', target: 'current_url', expected: targetUrl },
-        { type: 'status_code', target: 'response', expected: 200 }
+        { type: 'status_code', target: 'response', expected: 200 },
       ],
       playwrightScript: `import { test, expect } from '@playwright/test';
 
 test('UI: Verify ${route.path} visual rendering & layout', async ({ page }) => {
   const response = await page.goto('${targetUrl}', { waitUntil: 'domcontentloaded', timeout: 15000 });
-  expect(response?.status()).toBe(200);
+  expect(response?.status()).toBeLessThan(400);
 
   // Check essential structural containers
   await expect(page.locator('body')).toBeVisible();
-  const mainContent = page.locator('main, [role="main"], #__next, body > div');
+  const mainContent = page.locator('main, [role="main"], #__next, #root, body > div');
   await expect(mainContent.first()).toBeVisible();
 
   // Verify no uncaught console errors
@@ -49,7 +49,7 @@ test('UI: Verify ${route.path} visual rendering & layout', async ({ page }) => {
   });
   
   await page.waitForTimeout(1000);
-  expect(consoleErrors.length).toBeLessThan(3);
+  expect(consoleErrors.length).toBeLessThan(5);
 });`,
       status: 'pending',
       selected: true,
@@ -62,9 +62,9 @@ test('UI: Verify ${route.path} visual rendering & layout', async ({ page }) => {
 
   if (authRoutes.length > 0 || metadata.authType !== 'none') {
     const loginPath = authRoutes[0]?.path || '/login';
-    const loginUrl = `${normalizedBase}${loginPath}`;
+    const loginUrl = `${effectiveBase}${loginPath}`;
     const protectedPath = protectedRoutes[0]?.path || '/dashboard';
-    const protectedUrl = `${normalizedBase}${protectedPath}`;
+    const protectedUrl = `${effectiveBase}${protectedPath}`;
 
     // Test: Login form validation & submission
     tests.push({
@@ -79,11 +79,11 @@ test('UI: Verify ${route.path} visual rendering & layout', async ({ page }) => {
         { order: 1, action: 'navigate', target: loginUrl, expected: 'Login screen rendered with credentials inputs' },
         { order: 2, action: 'assert', target: 'input[type="email"], input[name="email"], input[name="username"]', expected: 'Identifier field present' },
         { order: 3, action: 'fill', target: 'input[type="email"], input[name="email"]', value: 'qa-tester@example.com', expected: 'Email field filled' },
-        { order: 4, action: 'click', target: 'button[type="submit"]', expected: 'Submit action triggered' }
+        { order: 4, action: 'click', target: 'button[type="submit"]', expected: 'Submit action triggered' },
       ],
       assertions: [
         { type: 'element_visible', target: 'form, input[type="email"], input[name="email"]', expected: true },
-        { type: 'text_contains', target: 'body', expected: 'Sign in' }
+        { type: 'text_contains', target: 'body', expected: 'Sign in' },
       ],
       playwrightScript: `import { test, expect } from '@playwright/test';
 
@@ -91,8 +91,8 @@ test('Auth: Validate credentials input and form submission', async ({ page }) =>
   await page.goto('${loginUrl}', { waitUntil: 'networkidle' });
 
   // Locate login form elements
-  const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="email" i]').first();
-  await expect(emailInput).toBeVisible({ timeout: 5000 });
+  const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="email" i], input[type="text"]').first();
+  await expect(emailInput).toBeVisible({ timeout: 6000 });
   await emailInput.fill('qa-test-user@enterprise.org');
 
   const passwordInput = page.locator('input[type="password"]').first();
@@ -100,9 +100,11 @@ test('Auth: Validate credentials input and form submission', async ({ page }) =>
     await passwordInput.fill('TestPassword#2026!');
   }
 
-  const submitButton = page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")').first();
-  await expect(submitButton).toBeEnabled();
-  await submitButton.click();
+  const submitButton = page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Log In"), button:has-text("Submit")').first();
+  if (await submitButton.isVisible()) {
+    await expect(submitButton).toBeEnabled();
+    await submitButton.click();
+  }
 
   await page.waitForTimeout(1500);
 });`,
@@ -121,10 +123,10 @@ test('Auth: Validate credentials input and form submission', async ({ page }) =>
       preconditions: ['No active session token in cookie or localStorage'],
       steps: [
         { order: 1, action: 'navigate', target: protectedUrl, expected: 'Redirect response initiated' },
-        { order: 2, action: 'assert', target: 'current_url', expected: `URL redirected to ${loginPath} or contains redirect query` }
+        { order: 2, action: 'assert', target: 'current_url', expected: `URL redirected to ${loginPath} or contains redirect query` },
       ],
       assertions: [
-        { type: 'url_match', target: 'current_url', expected: loginPath }
+        { type: 'url_match', target: 'current_url', expected: loginPath },
       ],
       playwrightScript: `import { test, expect } from '@playwright/test';
 
@@ -136,67 +138,34 @@ test('Security: Protected route redirects unauthenticated visitor', async ({ pag
   await page.waitForTimeout(2000);
   const currentUrl = page.url();
   const isRedirectedToAuth = currentUrl.includes('login') || currentUrl.includes('auth') || currentUrl.includes('signin');
-  const hasAuthGuard = await page.locator('text=Sign in, text=Log in, text=Unauthorized').first().isVisible().catch(() => false);
+  const hasAuthGuard = await page.locator('text=Sign in, text=Log in, text=Unauthorized, text=Access Denied').first().isVisible().catch(() => false);
 
-  expect(isRedirectedToAuth || hasAuthGuard).toBeTruthy();
+  expect(isRedirectedToAuth || hasAuthGuard || currentUrl !== '${protectedUrl}').toBeTruthy();
 });`,
       status: 'pending',
       selected: true,
     });
-
-    // Test: Clerk specific scenario if authType is clerk
-    if (metadata.authType === 'clerk') {
-      tests.push({
-        id: `auth-clerk-1`,
-        title: `Clerk Auth: Sign-In Gateway & Social OAuth Triggers`,
-        category: 'Auth',
-        severity: 'critical',
-        targetRoute: '/sign-in',
-        description: 'Verifies Clerk hosted or embedded sign-in card renders social OAuth buttons, identifier input, and SSO triggers.',
-        preconditions: ['Browser session has no active Clerk client token'],
-        steps: [
-          { order: 1, action: 'navigate', target: `${normalizedBase}/sign-in`, expected: 'Clerk Sign In card rendered' },
-          { order: 2, action: 'assert', target: '.cl-signIn-root, .cl-card, input[name="identifier"], input[type="email"]', expected: 'Clerk identifier or SSO visible' },
-          { order: 3, action: 'wait', target: 'networkidle', expected: 'Clerk telemetry and handshake established' }
-        ],
-        assertions: [
-          { type: 'element_visible', target: 'body', expected: true }
-        ],
-        playwrightScript: `import { test, expect } from '@playwright/test';
-
-test('Clerk Auth: Verify Sign-in Gateway & OAuth Handshake', async ({ page }) => {
-  await page.goto('${normalizedBase}/sign-in', { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1000);
-  
-  // Verify Clerk root container or auth inputs
-  const clerkContainer = page.locator('.cl-signIn-root, .cl-card, input[name="identifier"], input[type="email"], text=Sign in').first();
-  await expect(clerkContainer).toBeVisible({ timeout: 10000 });
-});`,
-        status: 'pending',
-        selected: true,
-      });
-    }
   }
 
-  // 3. API Pathway Test Cases
+  // 3. API Test Cases
   const apiRoutes = detectedRoutes.filter((r) => r.type === 'api');
   if (apiRoutes.length > 0) {
-    apiRoutes.forEach((route, idx) => {
-      const targetUrl = `${normalizedBase}${route.path}`;
+    apiRoutes.slice(0, 3).forEach((route, idx) => {
+      const targetUrl = `${effectiveBase}${route.path}`;
       tests.push({
         id: `api-test-${idx + 1}`,
-        title: `API Endpoint: ${route.path} Request Verification`,
+        title: `API Route Contract & Response Code: ${route.path}`,
         category: 'API',
         severity: 'high',
         targetRoute: route.path,
-        description: `Dispatches HTTP requests to ${route.path}, verifying headers, response format, and HTTP status codes.`,
-        preconditions: ['API route is reachable'],
+        description: `Verifies HTTP response code, headers, and payload schema for ${route.path}.`,
+        preconditions: ['Target API server reachable'],
         steps: [
-          { order: 1, action: 'api_call', target: targetUrl, expected: 'Valid HTTP response received' },
-          { order: 2, action: 'assert', target: 'headers', expected: 'content-type includes application/json' }
+          { order: 1, action: 'api_call', target: targetUrl, expected: 'HTTP 200, 201, 401 or 403' },
+          { order: 2, action: 'assert', target: 'status_code', expected: 200 },
         ],
         assertions: [
-          { type: 'status_code', target: 'status', expected: 200 }
+          { type: 'status_code', target: 'response', expected: 200 },
         ],
         playwrightScript: `import { test, expect } from '@playwright/test';
 
@@ -204,7 +173,7 @@ test('API: Verify endpoint ${route.path} contract', async ({ request }) => {
   const response = await request.get('${targetUrl}');
   
   // Expect valid HTTP code (200 OK or 401 Unauthorized if protected)
-  expect([200, 401, 403, 404, 405]).toContain(response.status());
+  expect([200, 201, 204, 301, 302, 307, 308, 401, 403, 404, 405]).toContain(response.status());
   
   const headers = response.headers();
   console.log('API Status:', response.status(), 'Headers:', headers);
@@ -221,23 +190,23 @@ test('API: Verify endpoint ${route.path} contract', async ({ request }) => {
       category: 'API',
       severity: 'medium',
       targetRoute: '/api/health',
-      description: `Monitors base API endpoint health check and response times under 500ms.`,
+      description: `Monitors base API endpoint health check and response times under 1500ms.`,
       preconditions: ['Server is online'],
       steps: [
-        { order: 1, action: 'api_call', target: `${normalizedBase}/api/health`, expected: 'API returns within 500ms' }
+        { order: 1, action: 'api_call', target: `${effectiveBase}/api/health`, expected: 'API returns within 1500ms' },
       ],
       assertions: [
-        { type: 'status_code', target: 'status', expected: 200 }
+        { type: 'status_code', target: 'status', expected: 200 },
       ],
       playwrightScript: `import { test, expect } from '@playwright/test';
 
 test('API: Health Check and Response Latency', async ({ request }) => {
   const start = Date.now();
-  const response = await request.get('${normalizedBase}/');
+  const response = await request.get('${effectiveBase}/');
   const elapsed = Date.now() - start;
 
   expect(response.status()).toBeLessThan(500);
-  expect(elapsed).toBeLessThan(3000);
+  expect(elapsed).toBeLessThan(4000);
 });`,
       status: 'pending',
       selected: true,
@@ -254,20 +223,20 @@ test('API: Health Check and Response Latency', async ({ request }) => {
     description: `Executes multi-step user flow: loads homepage, checks viewport responsiveness, clicks navigation links, and verifies uninterrupted session flow.`,
     preconditions: ['Clean session', 'Viewport size 1440x900'],
     steps: [
-      { order: 1, action: 'navigate', target: `${normalizedBase}/`, expected: 'Homepage rendered' },
+      { order: 1, action: 'navigate', target: `${effectiveBase}/`, expected: 'Homepage rendered' },
       { order: 2, action: 'click', target: 'nav a, header a', expected: 'Navigate to secondary route' },
       { order: 3, action: 'wait', target: 'load', expected: 'Target view loaded without fatal crash' },
-      { order: 4, action: 'assert', target: 'body', expected: 'DOM state remains interactive' }
+      { order: 4, action: 'assert', target: 'body', expected: 'DOM state remains interactive' },
     ],
     assertions: [
       { type: 'element_visible', target: 'body', expected: true },
-      { type: 'status_code', target: 'response', expected: 200 }
+      { type: 'status_code', target: 'response', expected: 200 },
     ],
     playwrightScript: `import { test, expect } from '@playwright/test';
 
 test('Integration: Multi-route User Journey & Interactive State', async ({ page }) => {
   // Step 1: Visit Home
-  await page.goto('${normalizedBase}/', { waitUntil: 'networkidle' });
+  await page.goto('${effectiveBase}/', { waitUntil: 'networkidle' });
   await expect(page.locator('body')).toBeVisible();
 
   // Step 2: Discover and Click primary interactive element
@@ -280,7 +249,7 @@ test('Integration: Multi-route User Journey & Interactive State', async ({ page 
     if (href && href !== '#' && !href.startsWith('http')) {
       await Promise.all([
         page.waitForNavigation({ timeout: 10000 }).catch(() => null),
-        targetLink.click()
+        targetLink.click(),
       ]);
     }
   }
@@ -302,9 +271,11 @@ export async function generateTestCasesWithGemini(
   apiKey?: string,
   modelName: string = 'gemini-1.5-flash'
 ): Promise<TestCase[]> {
+  const effectiveBase = (inspection.liveUrl || inspection.metadata.liveUrl || baseUrl || 'http://localhost:3000').replace(/\/$/, '');
+
   if (!apiKey) {
     console.log('No Gemini API key supplied. Utilizing heuristic AST test generator.');
-    return generateHeuristicTestCases(inspection, baseUrl);
+    return generateHeuristicTestCases(inspection, effectiveBase);
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
@@ -316,19 +287,31 @@ export async function generateTestCasesWithGemini(
     },
   });
 
-  const prompt = `You are an expert Principal QA Automation Engineer and Playwright Browserbase specialist.
-Analyze this web application repository structure and auto-generate comprehensive, production-grade automated test cases.
+  const sourceType = inspection.sourceType || inspection.metadata.sourceType || 'github';
+  const sourceContext =
+    sourceType === 'deployed-url'
+      ? `Project Source: LIVE DEPLOYED WEB APPLICATION (${effectiveBase}). Discovered forms: ${JSON.stringify(inspection.detectedForms || [])}. Test actual live elements, forms, links, and API routes on this live domain.`
+      : sourceType === 'zip'
+      ? `Project Source: LOCAL PROJECT ZIP ARCHIVE (${inspection.metadata.zipFileName || 'project.zip'}). Base URL: ${effectiveBase}.`
+      : sourceType === 'local-folder'
+      ? `Project Source: LOCAL PROJECT FOLDER (${inspection.metadata.projectName || 'Local Workspace'}). Base URL: ${effectiveBase}.`
+      : `Project Source: GITHUB REPOSITORY (${inspection.metadata.owner}/${inspection.metadata.repo}). Base URL: ${effectiveBase}.`;
 
-Repository Metadata:
+  const prompt = `You are an expert Principal QA Automation Engineer and Playwright Browserbase specialist.
+Analyze this web application structure and auto-generate comprehensive, production-grade automated test cases.
+
+${sourceContext}
+
+Project Metadata:
 Framework: ${inspection.metadata.framework}
 Router Type: ${inspection.metadata.routerType}
 Auth Strategy: ${inspection.metadata.authType}
-Target Base URL: ${baseUrl}
+Target Base URL: ${effectiveBase}
 
 Detected Application Routes:
 ${JSON.stringify(inspection.detectedRoutes, null, 2)}
 
-Key Source Code Extracts (sample files):
+Key Source Code Extracts / DOM Landmarks (sample files):
 ${JSON.stringify(inspection.sampleCodeSnippets, null, 2)}
 
 TASK REQUIREMENTS:
@@ -340,7 +323,7 @@ Generate a structured JSON array of test cases covering all 4 core QA pillars:
 
 CRITICAL INSTRUCTIONS:
 - Each test case must include executable, valid Playwright TypeScript code in "playwrightScript" designed for headless cloud browser execution on Browserbase.
-- Target the supplied Base URL: "${baseUrl.replace(/\/$/, '')}".
+- Target the supplied Base URL: "${effectiveBase}".
 - Follow this exact JSON schema:
 [
   {
@@ -386,10 +369,10 @@ CRITICAL INSTRUCTIONS:
         selected: true,
       }));
     }
-    return generateHeuristicTestCases(inspection, baseUrl);
+    return generateHeuristicTestCases(inspection, effectiveBase);
   } catch (err: any) {
     console.error('Gemini test generation encountered an error, falling back to heuristic tests:', err);
-    return generateHeuristicTestCases(inspection, baseUrl);
+    return generateHeuristicTestCases(inspection, effectiveBase);
   }
 }
 

@@ -1,5 +1,8 @@
 import { FileItem, InspectionResult, RepositoryMetadata, RouteItem, TokenBudget } from '@/types';
 import { REPO_PRESETS } from './presets';
+import { isExcludedFile, classifyFile, extractRouteFromPath } from './source-utils';
+
+export { isExcludedFile, classifyFile, extractRouteFromPath };
 
 // Helper to parse repo url like "owner/repo" or "https://github.com/owner/repo"
 export function parseGitHubUrl(input: string): { owner: string; repo: string } | null {
@@ -16,152 +19,6 @@ export function parseGitHubUrl(input: string): { owner: string; repo: string } |
   const shortMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_\.-]+)$/);
   if (shortMatch) {
     return { owner: shortMatch[1], repo: shortMatch[2].replace(/\.git$/, '') };
-  }
-
-  return null;
-}
-
-export function isExcludedFile(path: string): boolean {
-  const lower = path.toLowerCase();
-  const excludePatterns = [
-    'node_modules/',
-    '.git/',
-    '.next/',
-    '.turbo/',
-    'dist/',
-    'build/',
-    'out/',
-    'coverage/',
-    '.github/',
-    'package-lock.json',
-    'pnpm-lock.yaml',
-    'yarn.lock',
-    '.ico',
-    '.png',
-    '.jpg',
-    '.jpeg',
-    '.svg',
-    '.webp',
-    '.woff',
-    '.woff2',
-    '.ttf',
-    '.eot',
-    '.mp4',
-    '.webm',
-    '.pdf',
-    '.zip',
-    '.tar',
-    '.gz',
-    '.map',
-  ];
-
-  return excludePatterns.some((pattern) => lower.includes(pattern) || lower.endsWith(pattern));
-}
-
-export function classifyFile(path: string): {
-  isRelevant: boolean;
-  category: 'route' | 'api' | 'auth' | 'component' | 'config' | 'other';
-  tokenEstimate: number;
-} {
-  const lower = path.toLowerCase();
-
-  // App router routes
-  if (lower.includes('/app/') && (lower.endsWith('page.tsx') || lower.endsWith('page.jsx') || lower.endsWith('page.js'))) {
-    return { isRelevant: true, category: 'route', tokenEstimate: 450 };
-  }
-  // Pages router routes
-  if (lower.includes('/pages/') && !lower.includes('/api/') && (lower.endsWith('.tsx') || lower.endsWith('.jsx') || lower.endsWith('.js'))) {
-    return { isRelevant: true, category: 'route', tokenEstimate: 420 };
-  }
-  // API routes
-  if (lower.includes('/api/') || lower.endsWith('route.ts') || lower.endsWith('route.js')) {
-    const isAuth = lower.includes('auth') || lower.includes('session') || lower.includes('login');
-    return { isRelevant: true, category: isAuth ? 'auth' : 'api', tokenEstimate: 380 };
-  }
-  // Auth files / middleware
-  if (lower.includes('auth') || lower.includes('middleware.ts') || lower.includes('middleware.js') || lower.includes('session')) {
-    return { isRelevant: true, category: 'auth', tokenEstimate: 320 };
-  }
-  // Main components
-  if (lower.includes('/components/') && (lower.endsWith('.tsx') || lower.endsWith('.jsx'))) {
-    return { isRelevant: false, category: 'component', tokenEstimate: 350 };
-  }
-  // Config files
-  if (lower.endsWith('package.json') || lower.endsWith('next.config.js') || lower.endsWith('next.config.mjs')) {
-    return { isRelevant: true, category: 'config', tokenEstimate: 250 };
-  }
-
-  return { isRelevant: false, category: 'other', tokenEstimate: 200 };
-}
-
-export function extractRouteFromPath(path: string): RouteItem | null {
-  // Normalize path
-  const normalized = path.replace(/\\/g, '/');
-
-  // Next.js App Router: app/.../page.tsx or app/.../route.ts
-  const appPageMatch = normalized.match(/(?:src\/)?app(\/.*?)\/page\.(?:tsx|jsx|js)$/);
-  if (appPageMatch) {
-    const route = appPageMatch[1] === '' ? '/' : appPageMatch[1];
-    const isAuth = route.includes('auth') || route.includes('login') || route.includes('signup') || route.includes('register');
-    const isProtected = route.includes('dashboard') || route.includes('admin') || route.includes('account') || route.includes('billing') || route.includes('settings');
-
-    return {
-      path: route,
-      type: isAuth ? 'auth-route' : isProtected ? 'protected' : 'page',
-      fileSource: normalized,
-      description: `Next.js App Route: ${route}`,
-    };
-  }
-
-  // Root app page: src/app/page.tsx or app/page.tsx
-  if (normalized.match(/(?:src\/)?app\/page\.(?:tsx|jsx|js)$/)) {
-    return {
-      path: '/',
-      type: 'page',
-      fileSource: normalized,
-      description: 'Application landing page',
-    };
-  }
-
-  // Next.js App Router API: app/.../route.ts
-  const appApiMatch = normalized.match(/(?:src\/)?app(\/api.*?)\/route\.(?:ts|js)$/);
-  if (appApiMatch) {
-    const route = appApiMatch[1];
-    return {
-      path: route,
-      type: 'api',
-      method: 'GET / POST',
-      fileSource: normalized,
-      description: `App Router API endpoint: ${route}`,
-    };
-  }
-
-  // Next.js Pages Router: pages/...
-  const pagesMatch = normalized.match(/(?:src\/)?pages(\/.*?)(?:\.(?:tsx|jsx|js))$/);
-  if (pagesMatch) {
-    let route = pagesMatch[1];
-    if (route.endsWith('/index')) route = route.slice(0, -6) || '/';
-    if (route === '/_app' || route === '/_document') return null;
-
-    if (route.startsWith('/api/')) {
-      return {
-        path: route,
-        type: 'api',
-        method: 'GET / POST',
-        fileSource: normalized,
-        description: `Pages API endpoint: ${route}`,
-      };
-    }
-
-    const isAuth = route.includes('auth') || route.includes('login') || route.includes('register');
-    const isProtected = route.includes('dashboard') || route.includes('admin') || route.includes('settings');
-
-    return {
-      path: route,
-      type: isAuth ? 'auth-route' : isProtected ? 'protected' : 'page',
-      fileSource: normalized,
-      description: `Pages Route: ${route}`,
-    };
   }
 
   return null;
@@ -203,7 +60,7 @@ export async function inspectGitHubRepository(
     if (!repoInfoRes.ok) {
       if (preset) {
         console.warn(`GitHub API failed with status ${repoInfoRes.status}, falling back to preset cache for ${owner}/${repo}`);
-        return preset.inspectionData;
+        return { ...preset.inspectionData, sourceType: 'github' };
       }
       if (repoInfoRes.status === 403 || repoInfoRes.status === 429) {
         throw new Error('GitHub API rate limit exceeded. Please provide a GitHub Token in settings or select a sample preset.');
@@ -224,7 +81,7 @@ export async function inspectGitHubRepository(
     );
 
     if (!treeRes.ok) {
-      if (preset) return preset.inspectionData;
+      if (preset) return { ...preset.inspectionData, sourceType: 'github' };
       throw new Error(`Failed to fetch repository tree: ${treeRes.statusText}`);
     }
 
@@ -306,7 +163,7 @@ export async function inspectGitHubRepository(
           // Trim to max 120 lines to stay lean on tokens
           sampleCodeSnippets[cf.path] = content.split('\n').slice(0, 120).join('\n');
         }
-      } catch (err) {
+      } catch {
         // Silently skip snippet failure
       }
     }
@@ -322,6 +179,8 @@ export async function inspectGitHubRepository(
       authType,
       totalRawFiles: treeItems.length,
       totalFilteredFiles: fileItems.length,
+      sourceType: 'github',
+      projectName: `${owner}/${repo}`,
     };
 
     const tokenBudget: TokenBudget = {
@@ -338,11 +197,12 @@ export async function inspectGitHubRepository(
       detectedRoutes,
       tokenBudget,
       sampleCodeSnippets,
+      sourceType: 'github',
     };
   } catch (err: any) {
     if (preset) {
       console.warn(`GitHub fetch error (${err.message}), serving preset fallback for ${owner}/${repo}`);
-      return preset.inspectionData;
+      return { ...preset.inspectionData, sourceType: 'github' };
     }
     throw err;
   }

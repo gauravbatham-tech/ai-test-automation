@@ -5,15 +5,16 @@ import {
   Bot, 
   Settings, 
   Play, 
-  GitBranch, 
   Layers, 
   CheckCircle2, 
   Sparkles, 
   Globe, 
-  ExternalLink,
-  Github
+  FileArchive,
+  FolderCode,
+  Github,
+  Compass
 } from 'lucide-react';
-import { AppConfig, GitHubUser } from '@/types';
+import { AppConfig, GitHubUser, ProjectSourceType } from '@/types';
 import { ClerkAuthControl } from './AuthProvider';
 
 interface NavbarProps {
@@ -26,6 +27,8 @@ interface NavbarProps {
   config: AppConfig;
   testCount: number;
   completedCount: number;
+  projectSource?: ProjectSourceType;
+  projectLabel?: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -38,9 +41,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   config,
   testCount,
   completedCount,
+  projectSource,
+  projectLabel,
 }) => {
   const steps = [
-    { id: 'inspect', label: '1. Repo Inspection', icon: GitBranch },
+    { id: 'inspect', label: '1. Project Inspection', icon: Compass },
     { id: 'matrix', label: `2. Test Matrix ${testCount > 0 ? `(${testCount})` : ''}`, icon: Layers },
     { id: 'runner', label: '3. Cloud Runner', icon: Play },
     { id: 'report', label: `4. Replays & Analytics ${completedCount > 0 ? `(${completedCount})` : ''}`, icon: CheckCircle2 },
@@ -58,10 +63,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold tracking-tight text-white">AutoQA<span className="text-cyan-400">.ai</span></span>
               <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-300 border border-cyan-500/30">
-                Agent v1.0
+                Agent v2.0
               </span>
             </div>
-            <p className="text-xs text-slate-400">Gemini AI • Browserbase • Clerk</p>
+            <p className="text-xs text-slate-400">Gemini AI • Browserbase • Multi-Source QA</p>
           </div>
         </div>
 
@@ -89,6 +94,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Controls & Settings & Clerk Auth */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Active Source Pill */}
+          {projectSource && (
+            <div className="hidden lg:flex items-center gap-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 px-2.5 py-1 text-[11px] text-slate-300">
+              {projectSource === 'deployed-url' && <Globe className="h-3 w-3 text-cyan-400" />}
+              {projectSource === 'zip' && <FileArchive className="h-3 w-3 text-amber-400" />}
+              {projectSource === 'local-folder' && <FolderCode className="h-3 w-3 text-emerald-400" />}
+              {projectSource === 'github' && <Github className="h-3 w-3 text-violet-400" />}
+              <span className="font-semibold truncate max-w-[120px]">
+                {projectLabel || (projectSource === 'deployed-url' ? 'Live Site' : projectSource === 'zip' ? 'ZIP Project' : projectSource === 'local-folder' ? 'Local Code' : 'GitHub')}
+              </span>
+            </div>
+          )}
+
           {/* Connect Repo Button */}
           {connectedUser ? (
             <button

@@ -79,15 +79,21 @@ export default function Home() {
     localStorage.setItem('autoqa_config', JSON.stringify(newConfig));
   };
 
-  // 1. Inspect Repo
-  const handleInspect = async (repoUrl: string) => {
+  // 1a. Inspect GitHub Repo or Deployed URL fallback
+  const handleInspect = async (inputStr: string) => {
+    const trimmed = inputStr.trim();
+    if ((trimmed.startsWith('http://') || trimmed.startsWith('https://')) && !trimmed.includes('github.com')) {
+      return handleInspectDeployedUrl(trimmed);
+    }
+
     setIsInspecting(true);
     try {
-      const res = await fetch('/api/github/inspect', {
+      const res = await fetch('/api/inspect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          repoUrl,
+          sourceType: 'github',
+          repoUrl: trimmed,
           githubToken: config.githubToken,
         }),
       });
@@ -110,10 +116,96 @@ export default function Home() {
     }
   };
 
+  // 1b. Inspect Deployed Application URL
+  const handleInspectDeployedUrl = async (liveUrl: string) => {
+    setIsInspecting(true);
+    try {
+      const res = await fetch('/api/inspect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceType: 'deployed-url',
+          liveUrl,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to crawl live application.');
+      }
+
+      const data: InspectionResult = await res.json();
+      setInspection(data);
+
+      // Automatically point baseUrl to the live application URL
+      const targetBase = data.liveUrl || liveUrl;
+      const updatedConfig = { ...config, baseUrl: targetBase };
+      handleSaveConfig(updatedConfig);
+
+      const synthesizedTests = generateHeuristicTestCases(data, targetBase);
+      setTestCases(synthesizedTests);
+    } catch (err: any) {
+      alert(`Live Application Inspection Error: ${err.message}`);
+    } finally {
+      setIsInspecting(false);
+    }
+  };
+
+  // 1c. Inspect Uploaded ZIP Project Archive
+  const handleInspectZip = async (file: File, targetBaseUrl?: string) => {
+    setIsInspecting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sourceType', 'zip');
+
+      const res = await fetch('/api/inspect', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to decompress and inspect ZIP file.');
+      }
+
+      const data: InspectionResult = await res.json();
+      setInspection(data);
+
+      const effectiveBase = targetBaseUrl || config.baseUrl;
+      if (targetBaseUrl && targetBaseUrl !== config.baseUrl) {
+        handleSaveConfig({ ...config, baseUrl: targetBaseUrl });
+      }
+
+      const synthesizedTests = generateHeuristicTestCases(data, effectiveBase);
+      setTestCases(synthesizedTests);
+    } catch (err: any) {
+      alert(`ZIP Inspection Error: ${err.message}`);
+    } finally {
+      setIsInspecting(false);
+    }
+  };
+
+  // 1d. Handle Processed Local Folder Result
+  const handleInspectLocalFolderResult = (data: InspectionResult, targetBaseUrl?: string) => {
+    setInspection(data);
+    const effectiveBase = targetBaseUrl || config.baseUrl;
+    if (targetBaseUrl && targetBaseUrl !== config.baseUrl) {
+      handleSaveConfig({ ...config, baseUrl: targetBaseUrl });
+    }
+    const synthesizedTests = generateHeuristicTestCases(data, effectiveBase);
+    setTestCases(synthesizedTests);
+  };
+
   // Quick preset selector
   const handleSelectPreset = (preset: RepoPreset) => {
     setInspection(preset.inspectionData);
-    const tests = generateHeuristicTestCases(preset.inspectionData, config.baseUrl);
+    let targetBase = config.baseUrl;
+    if (preset.liveUrl) {
+      targetBase = preset.liveUrl;
+      handleSaveConfig({ ...config, baseUrl: preset.liveUrl });
+    }
+    const tests = generateHeuristicTestCases(preset.inspectionData, targetBase);
     setTestCases(tests);
   };
 
@@ -122,13 +214,15 @@ export default function Home() {
     if (!inspection) return;
     setIsGenerating(true);
 
+    const effectiveBaseUrl = inspection.liveUrl || inspection.metadata.liveUrl || config.baseUrl;
+
     try {
       const res = await fetch('/api/gemini/generate-tests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           inspection,
-          baseUrl: config.baseUrl,
+          baseUrl: effectiveBaseUrl,
           apiKey: config.geminiApiKey,
           modelName: config.geminiModel,
         }),
@@ -144,7 +238,7 @@ export default function Home() {
       }
     } catch (err: any) {
       console.warn('Falling back to heuristic generation:', err);
-      const fallbackTests = generateHeuristicTestCases(inspection, config.baseUrl);
+      const fallbackTests = generateHeuristicTestCases(inspection, effectiveBaseUrl);
       setTestCases(fallbackTests);
     } finally {
       setIsGenerating(false);
@@ -163,6 +257,8 @@ export default function Home() {
     setTestCases((prev) =>
       prev.map((t) => (t.selected ? { ...t, status: 'pending', executionResult: undefined } : t))
     );
+
+    const executionBaseUrl = inspection?.liveUrl || inspection?.metadata.liveUrl || config.baseUrl;
 
     for (let i = 0; i < selected.length; i++) {
       const test = selected[i];
@@ -183,7 +279,7 @@ export default function Home() {
             config: {
               browserbaseApiKey: config.browserbaseApiKey,
               browserbaseProjectId: config.browserbaseProjectId,
-              baseUrl: config.baseUrl,
+              baseUrl: executionBaseUrl,
               forceFail: isTargetedFail,
             },
           }),
@@ -326,6 +422,8 @@ export default function Home() {
         config={config}
         testCount={testCases.length}
         completedCount={completedCount}
+        projectSource={inspection?.sourceType || inspection?.metadata.sourceType}
+        projectLabel={inspection?.metadata.projectName || inspection?.metadata.repo}
       />
 
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -333,12 +431,16 @@ export default function Home() {
           <RepoInspector
             inspection={inspection}
             onInspect={handleInspect}
+            onInspectZip={handleInspectZip}
+            onInspectDeployedUrl={handleInspectDeployedUrl}
+            onInspectLocalFolderResult={handleInspectLocalFolderResult}
             isLoading={isInspecting}
             onProceedToMatrix={() => setActiveTab('matrix')}
             onSelectPreset={handleSelectPreset}
             onOpenConnectRepo={() => setIsConnectRepoModalOpen(true)}
             connectedUser={connectedUser}
             selectedRepoFullName={selectedRepoFullName}
+            configuredBaseUrl={config.baseUrl}
           />
         )}
 

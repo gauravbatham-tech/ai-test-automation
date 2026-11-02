@@ -1,4 +1,4 @@
-import { InspectionResult } from '@/types';
+import { InspectionResult, ProjectSourceType } from '@/types';
 
 export interface RepoPreset {
   id: string;
@@ -8,6 +8,8 @@ export interface RepoPreset {
   framework: string;
   stars: string;
   category: string;
+  sourceType?: ProjectSourceType;
+  liveUrl?: string;
   inspectionData: InspectionResult;
 }
 
@@ -19,7 +21,8 @@ export const REPO_PRESETS: RepoPreset[] = [
     repoUrl: 'https://github.com/clerk/clerk-nextjs-starter',
     framework: 'Next.js 14 (App Router) + Clerk',
     stars: '9.2k',
-    category: 'Clerk Auth & SaaS',
+    category: 'GitHub Repository',
+    sourceType: 'github',
     inspectionData: {
       metadata: {
         owner: 'clerk',
@@ -32,7 +35,10 @@ export const REPO_PRESETS: RepoPreset[] = [
         authType: 'clerk',
         totalRawFiles: 110,
         totalFilteredFiles: 11,
+        sourceType: 'github',
+        projectName: 'clerk/clerk-nextjs-starter',
       },
+      sourceType: 'github',
       tokenBudget: {
         rawRepoTokensEstimated: 260000,
         targetedTokensUsed: 3100,
@@ -55,9 +61,114 @@ export const REPO_PRESETS: RepoPreset[] = [
       ],
       sampleCodeSnippets: {
         'src/middleware.ts': `import { clerkMiddleware } from "@clerk/nextjs/server";\nexport default clerkMiddleware();\nexport const config = { matcher: ["/((?!.*\\\\..*|_next).*)", "/", "/(api|trpc)(.*)"] };`,
-        'src/app/sign-in/[[...sign-in]]/page.tsx': `import { SignIn } from "@clerk/nextjs";\nexport default function Page() {\n  return <SignIn />;\n}`
-      }
-    }
+        'src/app/sign-in/[[...sign-in]]/page.tsx': `import { SignIn } from "@clerk/nextjs";\nexport default function Page() {\n  return <SignIn />;\n}`,
+      },
+    },
+  },
+  {
+    id: 'live-saas-platform',
+    name: 'Vercel Storefront (Live Deployed App)',
+    description: 'Direct live web inspection of deployed e-commerce store with product search, cart modal, and live DOM landmarks.',
+    repoUrl: 'https://demo.vercel.store',
+    framework: 'Next.js (Live Deployed)',
+    stars: 'Live',
+    category: 'Live Deployed App',
+    sourceType: 'deployed-url',
+    liveUrl: 'https://demo.vercel.store',
+    inspectionData: {
+      metadata: {
+        owner: 'demo.vercel.store',
+        repo: 'storefront',
+        branch: 'production',
+        stars: 0,
+        language: 'HTML / TypeScript',
+        framework: 'Next.js App Router (Live)',
+        routerType: 'app-router',
+        authType: 'custom',
+        totalRawFiles: 48,
+        totalFilteredFiles: 6,
+        sourceType: 'deployed-url',
+        liveUrl: 'https://demo.vercel.store',
+        projectName: 'Vercel Commerce Store',
+      },
+      sourceType: 'deployed-url',
+      liveUrl: 'https://demo.vercel.store',
+      tokenBudget: {
+        rawRepoTokensEstimated: 240000,
+        targetedTokensUsed: 3100,
+        tokensSavedPercentage: 98.7,
+        filesScanned: 48,
+        targetedFilesCount: 6,
+      },
+      files: [
+        { path: 'routes/index.html', name: 'index.html', type: 'file', isRelevant: true, category: 'route', tokenEstimate: 520 },
+        { path: 'routes/search.html', name: 'search.html', type: 'file', isRelevant: true, category: 'route', tokenEstimate: 480 },
+        { path: 'routes/cart.html', name: 'cart.html', type: 'file', isRelevant: true, category: 'route', tokenEstimate: 410 },
+        { path: 'routes/product.html', name: 'product.html', type: 'file', isRelevant: true, category: 'route', tokenEstimate: 460 },
+      ],
+      detectedRoutes: [
+        { path: '/', type: 'page', fileSource: 'live:demo.vercel.store/', description: 'Live storefront hero, featured products grid, cart icon' },
+        { path: '/search', type: 'page', fileSource: 'live:demo.vercel.store/search', description: 'Interactive search query inputs, category filters, price sorting' },
+        { path: '/search/stickers', type: 'page', fileSource: 'live:demo.vercel.store/search/stickers', description: 'Category collection view with item cards' },
+        { path: '/cart', type: 'page', fileSource: 'live:demo.vercel.store/cart', description: 'Shopping cart drawer, quantity selectors, checkout CTA' },
+      ],
+      sampleCodeSnippets: {
+        'live-dom/navigation.html': `<header class="flex items-center justify-between p-4">\n  <a href="/" class="font-bold">ACME STORE</a>\n  <input type="search" placeholder="Search for products..." />\n  <button aria-label="Open cart">Cart (0)</button>\n</header>`,
+        'live-dom/hero-products.html': `<div class="grid grid-cols-3 gap-4">\n  <div class="product-card" data-id="1"><h3>Acme Mug</h3><button>Add to Cart</button></div>\n</div>`,
+      },
+    },
+  },
+  {
+    id: 'local-zip-microservice',
+    name: 'Customer CRM Portal (ZIP Archive)',
+    description: 'Offline project archive export containing Next.js routes, customer table, auth middleware, and REST API controllers.',
+    repoUrl: 'local/customer-portal.zip',
+    framework: 'Next.js + REST API (ZIP)',
+    stars: 'ZIP',
+    category: 'ZIP Project Archive',
+    sourceType: 'zip',
+    inspectionData: {
+      metadata: {
+        owner: 'Local Filesystem',
+        repo: 'customer-portal',
+        branch: 'local-upload',
+        stars: 0,
+        language: 'TypeScript',
+        framework: 'Next.js 14 App Router',
+        routerType: 'app-router',
+        authType: 'next-auth',
+        totalRawFiles: 95,
+        totalFilteredFiles: 10,
+        sourceType: 'zip',
+        zipFileName: 'customer-portal.zip',
+        projectName: 'Customer CRM Portal',
+      },
+      sourceType: 'zip',
+      tokenBudget: {
+        rawRepoTokensEstimated: 290000,
+        targetedTokensUsed: 3300,
+        tokensSavedPercentage: 98.9,
+        filesScanned: 95,
+        targetedFilesCount: 10,
+      },
+      files: [
+        { path: 'src/app/page.tsx', name: 'page.tsx', type: 'file', isRelevant: true, category: 'route', tokenEstimate: 420 },
+        { path: 'src/app/login/page.tsx', name: 'page.tsx', type: 'file', isRelevant: true, category: 'auth', tokenEstimate: 360 },
+        { path: 'src/app/customers/page.tsx', name: 'page.tsx', type: 'file', isRelevant: true, category: 'route', tokenEstimate: 490 },
+        { path: 'src/app/api/customers/route.ts', name: 'route.ts', type: 'file', isRelevant: true, category: 'api', tokenEstimate: 390 },
+        { path: 'src/middleware.ts', name: 'middleware.ts', type: 'file', isRelevant: true, category: 'auth', tokenEstimate: 180 },
+      ],
+      detectedRoutes: [
+        { path: '/', type: 'page', fileSource: 'src/app/page.tsx', description: 'CRM landing overview and portal entry' },
+        { path: '/login', type: 'auth-route', fileSource: 'src/app/login/page.tsx', description: 'Internal staff login credentials form' },
+        { path: '/customers', type: 'protected', fileSource: 'src/app/customers/page.tsx', description: 'Customer roster table, filter search, add new customer modal' },
+        { path: '/api/customers', type: 'api', method: 'GET / POST', fileSource: 'src/app/api/customers/route.ts', description: 'Customer records CRUD endpoint' },
+      ],
+      sampleCodeSnippets: {
+        'src/app/customers/page.tsx': `export default function CustomersPage() {\n  return (\n    <div className="p-8">\n      <h1 className="text-2xl font-bold">Customer Directory</h1>\n      <CustomerTable />\n      <button id="add-customer-btn">+ Add Customer</button>\n    </div>\n  );\n}`,
+        'src/middleware.ts': `export { default } from "next-auth/middleware";\nexport const config = { matcher: ["/customers/:path*"] };`,
+      },
+    },
   },
   {
     id: 'nextjs-saas-dashboard',
@@ -66,7 +177,8 @@ export const REPO_PRESETS: RepoPreset[] = [
     repoUrl: 'https://github.com/shadcn-ui/taxonomy',
     framework: 'Next.js 14 (App Router)',
     stars: '18.4k',
-    category: 'Full-Stack SaaS',
+    category: 'GitHub Repository',
+    sourceType: 'github',
     inspectionData: {
       metadata: {
         owner: 'shadcn-ui',
@@ -79,7 +191,10 @@ export const REPO_PRESETS: RepoPreset[] = [
         authType: 'next-auth',
         totalRawFiles: 148,
         totalFilteredFiles: 14,
+        sourceType: 'github',
+        projectName: 'shadcn-ui/taxonomy',
       },
+      sourceType: 'github',
       tokenBudget: {
         rawRepoTokensEstimated: 345000,
         targetedTokensUsed: 3820,
@@ -113,9 +228,9 @@ export const REPO_PRESETS: RepoPreset[] = [
       sampleCodeSnippets: {
         'src/app/login/page.tsx': `export default function LoginPage() {\n  return (\n    <div className="container flex h-screen w-screen flex-col items-center justify-center">\n      <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>\n      <UserAuthForm />\n      <Link href="/register" className="text-sm underline">Don't have an account? Sign Up</Link>\n    </div>\n  );\n}`,
         'src/middleware.ts': `import { withAuth } from "next-auth/middleware";\nexport default withAuth({\n  callbacks: { authorized: ({ token }) => !!token },\n  pages: { signIn: "/login" },\n});\nexport const config = { matcher: ["/dashboard/:path*"] };`,
-        'src/app/api/billing/stripe/route.ts': `export async function POST(req: Request) {\n  const session = await getServerSession(authOptions);\n  if (!session?.user) return new Response("Unauthorized", { status: 401 });\n  const stripeSession = await stripe.checkout.sessions.create({ ... });\n  return Response.json({ url: stripeSession.url });\n}`
-      }
-    }
+        'src/app/api/billing/stripe/route.ts': `export async function POST(req: Request) {\n  const session = await getServerSession(authOptions);\n  if (!session?.user) return new Response("Unauthorized", { status: 401 });\n  const stripeSession = await stripe.checkout.sessions.create({ ... });\n  return Response.json({ url: stripeSession.url });\n}`,
+      },
+    },
   },
   {
     id: 'ecommerce-storefront',
@@ -124,7 +239,8 @@ export const REPO_PRESETS: RepoPreset[] = [
     repoUrl: 'https://github.com/vercel/commerce',
     framework: 'Next.js 14 App Router',
     stars: '12.8k',
-    category: 'E-Commerce',
+    category: 'GitHub Repository',
+    sourceType: 'github',
     inspectionData: {
       metadata: {
         owner: 'vercel',
@@ -137,7 +253,10 @@ export const REPO_PRESETS: RepoPreset[] = [
         authType: 'custom',
         totalRawFiles: 210,
         totalFilteredFiles: 16,
+        sourceType: 'github',
+        projectName: 'vercel/commerce',
       },
+      sourceType: 'github',
       tokenBudget: {
         rawRepoTokensEstimated: 480000,
         targetedTokensUsed: 4100,
@@ -162,9 +281,9 @@ export const REPO_PRESETS: RepoPreset[] = [
       ],
       sampleCodeSnippets: {
         'app/product/[handle]/page.tsx': `export default async function ProductPage({ params }: { params: { handle: string } }) {\n  const product = await getProduct(params.handle);\n  return <AddToCartForm product={product} />;\n}`,
-        'app/api/cart/route.ts': `export async function POST(req: Request) {\n  const { variantId, quantity } = await req.json();\n  const cart = await addToCart(variantId, quantity);\n  return Response.json(cart);\n}`
-      }
-    }
+        'app/api/cart/route.ts': `export async function POST(req: Request) {\n  const { variantId, quantity } = await req.json();\n  const cart = await addToCart(variantId, quantity);\n  return Response.json(cart);\n}`,
+      },
+    },
   },
   {
     id: 'healthcare-portal',
@@ -173,7 +292,8 @@ export const REPO_PRESETS: RepoPreset[] = [
     repoUrl: 'https://github.com/acme/patient-care',
     framework: 'Next.js 14 (App Router)',
     stars: '4.2k',
-    category: 'Healthcare & Enterprise',
+    category: 'GitHub Repository',
+    sourceType: 'github',
     inspectionData: {
       metadata: {
         owner: 'acme',
@@ -186,7 +306,10 @@ export const REPO_PRESETS: RepoPreset[] = [
         authType: 'supabase',
         totalRawFiles: 180,
         totalFilteredFiles: 12,
+        sourceType: 'github',
+        projectName: 'acme/patient-care',
       },
+      sourceType: 'github',
       tokenBudget: {
         rawRepoTokensEstimated: 390000,
         targetedTokensUsed: 3600,
@@ -207,8 +330,8 @@ export const REPO_PRESETS: RepoPreset[] = [
         { path: '/api/appointments', type: 'api', method: 'GET / POST', fileSource: 'app/api/appointments/route.ts', description: 'Query available doctor slots, book confirmed appointment' },
       ],
       sampleCodeSnippets: {
-        'app/portal/book-appointment/page.tsx': `export default function BookAppointmentPage() {\n  return <BookingWizard steps={['Specialty', 'Doctor', 'TimeSlot', 'Confirm']} />;\n}`
-      }
-    }
-  }
+        'app/portal/book-appointment/page.tsx': `export default function BookAppointmentPage() {\n  return <BookingWizard steps={['Specialty', 'Doctor', 'TimeSlot', 'Confirm']} />;\n}`,
+      },
+    },
+  },
 ];
